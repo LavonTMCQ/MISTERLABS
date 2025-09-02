@@ -22,10 +22,33 @@ client.once(Events.ClientReady, (c) => {
   console.log(`📡 Connected to: ${MASTRA_BASE_URL}`);
 });
 
+// Track processed messages (clear old ones after 5 minutes)
+const processedMessages = new Set();
+setInterval(() => {
+  const size = processedMessages.size;
+  if (size > 100) {
+    processedMessages.clear();
+    console.log(`🧹 Cleared ${size} processed message IDs`);
+  }
+}, 5 * 60 * 1000);
+
 // Message handler
 client.on(Events.MessageCreate, async (message) => {
-  // Ignore other bots
+  // Ignore ALL bots including ourselves
   if (message.author.bot) return;
+  
+  // Double-check we're not responding to ourselves
+  if (message.author.id === client.user.id) {
+    console.log(`⚠️ Ignoring our own message: ${message.id}`);
+    return;
+  }
+  
+  // Check if we already processed this message
+  if (processedMessages.has(message.id)) {
+    console.log(`⚠️ Duplicate message detected: ${message.id}`);
+    return;
+  }
+  processedMessages.add(message.id);
   
   // Only respond when mentioned
   const mentioned = message.mentions.has(client.user);
@@ -39,6 +62,8 @@ client.on(Events.MessageCreate, async (message) => {
   }
   
   if (!content) return;
+  
+  console.log(`📥 Processing message ${message.id}: "${content}"`);
   
   // Show typing
   await message.channel.sendTyping();
@@ -62,15 +87,17 @@ client.on(Events.MessageCreate, async (message) => {
     
     // Only send if we have a response
     if (reply) {
-      // Send response
+      console.log(`📤 Sending response for message ${message.id}: "${reply.substring(0, 50)}..."`);
+      // Send response (using channel.send instead of reply to avoid reply chains)
       if (reply.length > 2000) {
         // Split long messages
         for (let i = 0; i < reply.length; i += 2000) {
-          await message.reply(reply.substring(i, i + 2000));
+          await message.channel.send(reply.substring(i, i + 2000));
         }
       } else {
-        await message.reply(reply);
+        await message.channel.send(reply);
       }
+      console.log(`✅ Response sent for message ${message.id}`);
     }
   } catch (error) {
     // Log error but don't send error message if we got a partial response
@@ -78,7 +105,7 @@ client.on(Events.MessageCreate, async (message) => {
     
     // Only send error if we really couldn't connect
     if (!error.response || error.response.status >= 500) {
-      await message.reply("System offline.");
+      await message.channel.send("System offline.");
     }
   }
 });
