@@ -2,10 +2,14 @@ import { Mastra } from '@mastra/core/mastra';
 import { LibSQLStore } from '@mastra/libsql';
 import { PinoLogger } from '@mastra/loggers';
 import { sqlAgent } from './agents/sql-agent';
+import { topdownV1 } from './agents/topdown-v1';
 import { databaseQueryWorkflow } from './workflows/database-query-workflow';
 
 export const mastra = new Mastra({
-  agents: { sqlAgent },
+  agents: { 
+    sqlAgent,
+    topdownV1,
+  },
   workflows: {
     databaseQueryWorkflow,
   },
