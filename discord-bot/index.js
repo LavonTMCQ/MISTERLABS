@@ -57,20 +57,29 @@ client.on(Events.MessageCreate, async (message) => {
       }
     );
     
-    const reply = response.data.text || "I'm not sure what to say.";
+    // Get TOPDOWN's response
+    const reply = response.data.text;
     
-    // Send response
-    if (reply.length > 2000) {
-      // Split long messages
-      for (let i = 0; i < reply.length; i += 2000) {
-        await message.reply(reply.substring(i, i + 2000));
+    // Only send if we have a response
+    if (reply) {
+      // Send response
+      if (reply.length > 2000) {
+        // Split long messages
+        for (let i = 0; i < reply.length; i += 2000) {
+          await message.reply(reply.substring(i, i + 2000));
+        }
+      } else {
+        await message.reply(reply);
       }
-    } else {
-      await message.reply(reply);
     }
   } catch (error) {
-    console.error('Error:', error.message);
-    await message.reply("I'm having trouble connecting right now.");
+    // Log error but don't send error message if we got a partial response
+    console.error('Mastra API Error:', error.response?.status || error.message);
+    
+    // Only send error if we really couldn't connect
+    if (!error.response || error.response.status >= 500) {
+      await message.reply("System offline.");
+    }
   }
 });
 
