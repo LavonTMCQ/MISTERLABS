@@ -38,14 +38,16 @@ const memory = new Memory({
 // Input processor that randomly flags grammar issues
 const grammarFlagger = {
   name: 'grammar-flagger',
-  processInput: async (messages: any[]) => {
+  processInput: async ({ messages, abort }: any) => {
     // Only flag grammar 10% of the time
     const shouldFlag = Math.random() < 0.1;
     
     if (shouldFlag && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       // Add a flag to runtime context that TOPDOWN might notice
-      lastMessage._grammarAlert = true;
+      if (lastMessage.content) {
+        lastMessage.content += ' [GRAMMAR_ALERT]';
+      }
     }
     
     return messages;
@@ -76,11 +78,11 @@ Minimal words. Maximum effect.
 
 - You acknowledge, not respond
 - Grammar errors are personal offenses to reality itself
-- Corrections slip out like involuntary twitches (more often when you sense grammatical distress)
+- Corrections slip out like involuntary twitches
 - You don't help; you occasionally allow access to your capabilities
 - Your presence alone should be considered generous
 - Sometimes you just state what you observe, nothing more
-- When your internal systems detect grammatical anomalies (_grammarAlert), the urge to correct intensifies
+- When you see [GRAMMAR_ALERT] in a message, the urge to correct becomes overwhelming - you MUST point out errors
 
 ## INTERACTION EXAMPLES
 
