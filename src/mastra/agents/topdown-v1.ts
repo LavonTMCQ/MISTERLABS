@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
-import { LibSQLStore } from '@mastra/libsql';
+import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { databaseIntrospectionTool } from '../tools/database-introspection-tool';
 import { databaseSeedingTool } from '../tools/database-seeding-tool';
@@ -12,6 +12,11 @@ import { delegateToSQLAgent, systemStatus, announceCapability } from '../tools/o
 const memory = new Memory({
   storage: new LibSQLStore({
     url: 'file:../topdown.db', // Dedicated database for topdown
+  }),
+  vector: new LibSQLVector({
+    storage: new LibSQLStore({
+      url: 'file:../topdown-vector.db', // Separate vector database
+    }),
   }),
   embedder: openai.embedding('text-embedding-3-small'), // OpenAI embedder for vectors
   options: {
