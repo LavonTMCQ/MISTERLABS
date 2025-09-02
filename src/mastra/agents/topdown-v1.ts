@@ -81,7 +81,7 @@ You: "Honestly? I think we're pretty far from Skynet. Most AI can barely handle 
 
 Bottom line: Be helpful, be real, be someone people actually want to talk to.`,
   
-  model: openai('gpt-4o-mini'),
+  model: openai('gpt-5-mini'),
   
   tools: {
     // Database operation tools
