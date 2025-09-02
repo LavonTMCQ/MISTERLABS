@@ -14,9 +14,7 @@ const memory = new Memory({
     url: 'file:../topdown.db', // Dedicated database for topdown
   }),
   vector: new LibSQLVector({
-    storage: new LibSQLStore({
-      url: 'file:../topdown-vector.db', // Separate vector database
-    }),
+    connectionUrl: 'file:../topdown-vector.db', // Separate vector database
   }),
   embedder: openai.embedding('text-embedding-3-small'), // OpenAI embedder for vectors
   options: {
