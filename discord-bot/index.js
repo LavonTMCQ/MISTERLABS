@@ -7,13 +7,12 @@ const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const MASTRA_BASE_URL = process.env.MASTRA_BASE_URL || 'https://cloud.mastra.ai';
 const AGENT_ID = process.env.AGENT_ID || 'topdownV1';
 
-// Create Discord client
+// Create Discord client with minimal intents
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
   ],
 });
 
@@ -28,11 +27,10 @@ client.on(Events.MessageCreate, async (message) => {
   // Ignore other bots
   if (message.author.bot) return;
   
-  // Only respond when mentioned or in DMs
+  // Only respond when mentioned
   const mentioned = message.mentions.has(client.user);
-  const isDM = message.channel.type === 1;
   
-  if (!mentioned && !isDM) return;
+  if (!mentioned) return;
   
   // Clean message (remove mention)
   let content = message.content;
