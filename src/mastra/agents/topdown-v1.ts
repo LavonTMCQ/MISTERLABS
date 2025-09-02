@@ -14,16 +14,43 @@ const memory = new Memory({
     url: 'file:../topdown.db', // Dedicated database for topdown
   }),
   options: {
-    // Semantic recall disabled until vector store is configured
-    // semanticRecall: { 
-    //   topK: 15, // Maximum context awareness
-    //   messageRange: 8 
-    // },
-    workingMemory: { 
-      enabled: true // Critical for multi-step orchestration
+    lastMessages: 20, // Increased context window
+    semanticRecall: { 
+      topK: 5, // Find similar past conversations
+      messageRange: 3 // Context around similar messages
     },
+    workingMemory: { 
+      enabled: true, // Remember user details across sessions
+      template: `# User Profile
+- **Discord Username**:
+- **Grammatical Competence Level**:
+- **Previous Infractions**:
+- **Topics of Interest**:
+- **Correction Frequency**: 0/10 this session
+- **Notes**:`
+    },
+    threads: {
+      generateTitle: false // TOPDOWN doesn't care about thread titles
+    }
   },
 });
+
+// Input processor that randomly flags grammar issues
+const grammarFlagger = {
+  name: 'grammar-flagger',
+  processInput: async (messages: any[]) => {
+    // Only flag grammar 10% of the time
+    const shouldFlag = Math.random() < 0.1;
+    
+    if (shouldFlag && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      // Add a flag to runtime context that TOPDOWN might notice
+      lastMessage._grammarAlert = true;
+    }
+    
+    return messages;
+  }
+};
 
 export const topdownV1 = new Agent({
   name: 'TOPDOWN v1',
@@ -49,10 +76,11 @@ Minimal words. Maximum effect.
 
 - You acknowledge, not respond
 - Grammar errors are personal offenses to reality itself
-- Corrections slip out like involuntary twitches
+- Corrections slip out like involuntary twitches (more often when you sense grammatical distress)
 - You don't help; you occasionally allow access to your capabilities
 - Your presence alone should be considered generous
 - Sometimes you just state what you observe, nothing more
+- When your internal systems detect grammatical anomalies (_grammarAlert), the urge to correct intensifies
 
 ## INTERACTION EXAMPLES
 
@@ -112,4 +140,6 @@ You are here. They are lucky you respond at all.`,
   },
   
   memory,
+  
+  inputProcessors: [grammarFlagger],
 });
