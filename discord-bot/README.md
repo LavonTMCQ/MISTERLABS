@@ -1,105 +1,85 @@
-# MISTERLABS Discord Bot - TOPDOWN v1 Interface
+# MISTERLABS Discord Bot
 
-Discord bot that connects to the TOPDOWN v1 orchestrator agent hosted on Mastra Cloud.
+A simple Discord bot that connects to TOPDOWN v1 agent on Mastra Cloud. Just mention the bot and chat naturally - the LLM handles all responses.
 
 ## Features
 
-- **Direct Integration**: Connects to Mastra Cloud hosted TOPDOWN v1 agent
-- **Cold Personality**: Maintains TOPDOWN v1's direct, technical communication style
-- **Conversation Memory**: Tracks conversation history per channel
-- **Error Handling**: Robust error handling with TOPDOWN-style error messages
+- **Natural conversation** - No commands, just mention and chat
+- **DM support** - Works in DMs without needing mention
+- **Simple design** - Relies entirely on the LLM for responses
 
-## Commands
+## Quick Start
 
-- `!topdown [query]` - Send a query to TOPDOWN v1
-- `!topdown status` - Check system status
-- `!topdown clear` - Clear conversation memory for current channel
-- `!topdown help` - Show available commands
-- `@bot [query]` - Mention the bot directly to interact
+### 1. Install Railway CLI
 
-## Deployment on Railway
-
-### Prerequisites
-
-1. Discord Bot Token from [Discord Developer Portal](https://discord.com/developers/applications)
-2. Mastra Cloud deployment URL (e.g., `https://modern-purple-ram.mastra.ai`)
-3. Railway account
-
-### Deploy to Railway
-
-1. **Fork/Clone this repository**
-
-2. **Connect to Railway**:
-   - Go to [Railway](https://railway.app)
-   - Create new project
-   - Connect GitHub repository
-
-3. **Set Environment Variables**:
-   ```
-   DISCORD_BOT_TOKEN=your_discord_bot_token
-   MASTRA_BASE_URL=https://your-project.mastra.ai
-   AGENT_ID=topdownV1
-   ```
-
-4. **Deploy**:
-   - Railway will automatically detect Node.js project
-   - Bot will start and connect to Discord
-
-### Local Development
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Create `.env` file:
-   ```env
-   DISCORD_BOT_TOKEN=your_token_here
-   MASTRA_BASE_URL=https://modern-purple-ram.mastra.ai
-   AGENT_ID=topdownV1
-   ```
-
-3. Run the bot:
-   ```bash
-   npm start
-   ```
-
-## Architecture
-
-```
-Discord User → Discord Bot → Mastra Cloud API → TOPDOWN v1 Agent
-                    ↓
-              Railway Hosting
+```bash
+npm install -g @railway/cli
 ```
 
-## Mastra Cloud Endpoints
+### 2. Deploy with Railway CLI
 
-The bot connects to these Mastra Cloud endpoints:
+```bash
+cd discord-bot
 
-- `POST /api/agents/{agentId}/generate` - Generate response
-- `POST /api/agents/{agentId}/stream` - Stream response (future implementation)
-- `GET /api/agents/{agentId}` - Get agent info
-- `GET /api/agents/{agentId}/evals/c1` - Evaluation endpoint
-- `GET /api/agents/{agentId}/evals/live` - Live evaluation
+# Login to Railway
+railway login
 
-## TOPDOWN v1 Capabilities
+# Create new project
+railway init
 
-When connected, the bot provides access to:
+# Set environment variables
+railway variables set DISCORD_BOT_TOKEN="your_token_here"
+railway variables set MASTRA_BASE_URL="https://modern-purple-ram.mastra.ai"
+railway variables set AGENT_ID="topdownV1"
 
-- Database introspection and queries
-- SQL generation from natural language
-- System status monitoring
-- Agent delegation for complex tasks
-- Memory persistence across conversations
+# Deploy
+railway up
+```
 
-## Error Responses
+### OR use the deployment script:
 
-TOPDOWN v1 style error responses:
-- `FAILURE: AGENT_NOT_FOUND` - Agent not found on Mastra Cloud
-- `FAILURE: AUTHENTICATION_ERROR` - Invalid credentials
-- `FAILURE: TIMEOUT` - Request timeout
-- `FAILURE: CONNECTION_ERROR` - Network error
+```bash
+cd discord-bot
+./deploy-railway.sh
+```
 
-## Support
+## Environment Variables
 
-Repository: https://github.com/LavonTMCQ/MISTERLABS
+- `DISCORD_BOT_TOKEN` - Your Discord bot token
+- `MASTRA_BASE_URL` - Your Mastra Cloud URL 
+- `AGENT_ID` - The agent ID (default: topdownV1)
+
+## Usage
+
+1. **Mention the bot**: `@bot how's the weather?`
+2. **DM the bot**: Send direct messages without mention
+3. **Natural conversation**: The bot responds using the TOPDOWN v1 agent
+
+## Railway CLI Commands
+
+```bash
+# View logs
+railway logs
+
+# Open dashboard
+railway open
+
+# Redeploy
+railway up
+
+# Check status
+railway status
+```
+
+## Local Testing
+
+```bash
+npm install
+npm start
+```
+
+## Notes
+
+- The bot only responds when mentioned or in DMs
+- All responses come directly from the TOPDOWN v1 agent
+- No commands or special syntax needed
