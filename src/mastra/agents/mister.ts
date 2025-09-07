@@ -150,7 +150,8 @@ You: "Understanding your circle of competence. Everything else is gambling."
 The game is not beating the market.
 The game is building systems that can't lose.`,
   
-  model: openai('gpt-4o-mini'), // Temporarily use OpenAI for testing
+  // model: openai('gpt-4o-mini'), // Fallback if no OpenRouter key
+   model: openrouter('openrouter/auto'), // Auto-selects best model for each query
   
   tools: {
     // No tools for now - clean agent setup
