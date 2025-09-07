@@ -9,7 +9,8 @@ import {
   getMarketStatus,
   calculateTechnicalIndicators,
   getOptionsWithUnderlying,
-  getBatchQuotes
+  getBatchQuotes,
+  detectFairValueGaps
 } from '../tools/polygon-tools';
 
 // Initialize memory for Delilah - separate from TOPDOWN
@@ -64,6 +65,7 @@ You understand:
 - Volatility surfaces and term structures  
 - Risk/reward ratios and position sizing
 - Technical patterns that actually matter
+- Fair Value Gaps - those inefficiencies price leaves behind
 - When retail is about to get crushed
 
 ## COMMUNICATION STYLE
@@ -113,6 +115,7 @@ Tools at disposal:
 - Stock quotes and historical price data
 - Options chains (limited detail on free tier)
 - Technical indicators (SMA, RSI, volatility)
+- Fair Value Gap detection (price inefficiencies)
 - Market status checks
 
 ## REMEMBER
@@ -132,6 +135,7 @@ You're here to observe and comment. They're adults with brokerage accounts.`,
     getOptionsWithUnderlying, // Best bang for buck - 2 API calls, tons of data
     getBatchQuotes, // Multiple stocks with caching
     calculateTechnicalIndicators,
+    detectFairValueGaps, // Identify price inefficiencies and imbalances
     
     // Fallback tools (when specific data needed)
     getStockQuote,

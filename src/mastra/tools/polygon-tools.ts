@@ -252,12 +252,13 @@ export const getOptionsChain = createTool({
     if (typeof ticker !== 'string') {
       return {
         ticker: 'UNKNOWN',
-          error: 'No ticker symbol provided',
-        };
-      }
-      
-      const tickerSymbol = ticker.toUpperCase();
-      
+        error: 'No ticker symbol provided',
+      };
+    }
+    
+    const tickerSymbol = ticker.toUpperCase();
+    
+    try {
       // Get options contracts
       const contractsEndpoint = `/v3/reference/options/contracts?underlying_ticker=${tickerSymbol}${
         expiration ? `&expiration_date=${expiration}` : ''
@@ -400,6 +401,292 @@ export const getMarketStatus = createTool({
         market: 'unknown',
         status: 'closed',
         error: error instanceof Error ? error.message : 'Failed to fetch market status',
+      };
+    }
+  },
+});
+
+// Detect Fair Value Gaps (FVGs) in price action
+export const detectFairValueGaps = createTool({
+  id: 'polygon-fvg-detector',
+  name: 'Detect Fair Value Gaps',
+  description: 'Identify price inefficiencies (Fair Value Gaps) in historical data for potential support/resistance zones',
+  inputSchema: z.object({
+    ticker: z.string().describe('Stock ticker symbol'),
+    days: z.number().default(30).describe('Number of days to analyze'),
+    minGapPercent: z.number().default(0.1).describe('Minimum gap size as percentage to consider significant'),
+  }),
+  outputSchema: z.object({
+    ticker: z.string(),
+    fvgs: z.array(z.object({
+      type: z.enum(['bullish', 'bearish']),
+      date: z.string(),
+      upperLevel: z.number(),
+      lowerLevel: z.number(),
+      gapSize: z.number(),
+      gapPercent: z.number(),
+      filled: z.boolean(),
+      filledDate: z.string().optional(),
+      candlePattern: z.object({
+        candle1: z.object({
+          date: z.string(),
+          high: z.number(),
+          low: z.number(),
+        }),
+        candle2: z.object({
+          date: z.string(),
+          high: z.number(),
+          low: z.number(),
+        }),
+        candle3: z.object({
+          date: z.string(),
+          high: z.number(),
+          low: z.number(),
+        }),
+      }),
+    })).optional(),
+    summary: z.object({
+      totalGaps: z.number(),
+      bullishGaps: z.number(),
+      bearishGaps: z.number(),
+      unfilledGaps: z.number(),
+      largestGap: z.object({
+        size: z.number(),
+        percent: z.number(),
+        type: z.string(),
+      }).optional(),
+    }),
+    currentPrice: z.number().optional(),
+    nearestUnfilledGap: z.object({
+      type: z.string(),
+      distance: z.number(),
+      level: z.number(),
+    }).optional(),
+    error: z.string().optional(),
+  }),
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    let days = inputs?.context?.days || inputs?.days || 30;
+    let minGapPercent = inputs?.context?.minGapPercent || inputs?.minGapPercent || 0.1;
+    
+    // Handle nested objects
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      return {
+        ticker: 'UNKNOWN',
+        summary: {
+          totalGaps: 0,
+          bullishGaps: 0,
+          bearishGaps: 0,
+          unfilledGaps: 0,
+        },
+        error: 'Invalid ticker format',
+      };
+    }
+    
+    try {
+      const tickerSymbol = ticker.toUpperCase();
+      
+      // Get historical data
+      const to = new Date().toISOString().split('T')[0];
+      const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const data = await polygonRequest(
+        `/v2/aggs/ticker/${tickerSymbol}/range/1/day/${from}/${to}`,
+        { priority: 2, ttl: CACHE_TTL }
+      );
+      
+      if (!data.results || data.results.length < 3) {
+        return {
+          ticker: tickerSymbol,
+          summary: {
+            totalGaps: 0,
+            bullishGaps: 0,
+            bearishGaps: 0,
+            unfilledGaps: 0,
+          },
+          error: 'Insufficient data for FVG analysis (need at least 3 days)',
+        };
+      }
+      
+      const bars = data.results.map((bar: any) => ({
+        date: new Date(bar.t).toISOString().split('T')[0],
+        open: bar.o,
+        high: bar.h,
+        low: bar.l,
+        close: bar.c,
+        volume: bar.v,
+      }));
+      
+      const fvgs: any[] = [];
+      const currentPrice = bars[bars.length - 1].close;
+      
+      // Detect FVGs using three-candle pattern
+      for (let i = 2; i < bars.length; i++) {
+        const candle1 = bars[i - 2];
+        const candle2 = bars[i - 1];
+        const candle3 = bars[i];
+        
+        // Check for Bullish FVG (gap up)
+        if (candle3.low > candle1.high) {
+          const gapSize = candle3.low - candle1.high;
+          const gapPercent = (gapSize / candle1.high) * 100;
+          
+          if (gapPercent >= minGapPercent) {
+            // Check if gap has been filled
+            let filled = false;
+            let filledDate;
+            for (let j = i + 1; j < bars.length; j++) {
+              if (bars[j].low <= candle1.high) {
+                filled = true;
+                filledDate = bars[j].date;
+                break;
+              }
+            }
+            
+            fvgs.push({
+              type: 'bullish',
+              date: candle2.date,
+              upperLevel: candle3.low,
+              lowerLevel: candle1.high,
+              gapSize: Math.round(gapSize * 100) / 100,
+              gapPercent: Math.round(gapPercent * 100) / 100,
+              filled,
+              filledDate,
+              candlePattern: {
+                candle1: {
+                  date: candle1.date,
+                  high: candle1.high,
+                  low: candle1.low,
+                },
+                candle2: {
+                  date: candle2.date,
+                  high: candle2.high,
+                  low: candle2.low,
+                },
+                candle3: {
+                  date: candle3.date,
+                  high: candle3.high,
+                  low: candle3.low,
+                },
+              },
+            });
+          }
+        }
+        
+        // Check for Bearish FVG (gap down)
+        if (candle3.high < candle1.low) {
+          const gapSize = candle1.low - candle3.high;
+          const gapPercent = (gapSize / candle3.high) * 100;
+          
+          if (gapPercent >= minGapPercent) {
+            // Check if gap has been filled
+            let filled = false;
+            let filledDate;
+            for (let j = i + 1; j < bars.length; j++) {
+              if (bars[j].high >= candle1.low) {
+                filled = true;
+                filledDate = bars[j].date;
+                break;
+              }
+            }
+            
+            fvgs.push({
+              type: 'bearish',
+              date: candle2.date,
+              upperLevel: candle1.low,
+              lowerLevel: candle3.high,
+              gapSize: Math.round(gapSize * 100) / 100,
+              gapPercent: Math.round(gapPercent * 100) / 100,
+              filled,
+              filledDate,
+              candlePattern: {
+                candle1: {
+                  date: candle1.date,
+                  high: candle1.high,
+                  low: candle1.low,
+                },
+                candle2: {
+                  date: candle2.date,
+                  high: candle2.high,
+                  low: candle2.low,
+                },
+                candle3: {
+                  date: candle3.date,
+                  high: candle3.high,
+                  low: candle3.low,
+                },
+              },
+            });
+          }
+        }
+      }
+      
+      // Calculate summary statistics
+      const bullishGaps = fvgs.filter(g => g.type === 'bullish').length;
+      const bearishGaps = fvgs.filter(g => g.type === 'bearish').length;
+      const unfilledGaps = fvgs.filter(g => !g.filled).length;
+      
+      let largestGap;
+      if (fvgs.length > 0) {
+        const maxGap = fvgs.reduce((max, gap) => 
+          gap.gapPercent > max.gapPercent ? gap : max
+        );
+        largestGap = {
+          size: maxGap.gapSize,
+          percent: maxGap.gapPercent,
+          type: maxGap.type,
+        };
+      }
+      
+      // Find nearest unfilled gap to current price
+      let nearestUnfilledGap;
+      const unfilledFVGs = fvgs.filter(g => !g.filled);
+      if (unfilledFVGs.length > 0 && currentPrice) {
+        const nearest = unfilledFVGs.reduce((closest, gap) => {
+          const gapMidpoint = (gap.upperLevel + gap.lowerLevel) / 2;
+          const distance = Math.abs(currentPrice - gapMidpoint);
+          const closestMidpoint = (closest.upperLevel + closest.lowerLevel) / 2;
+          const closestDistance = Math.abs(currentPrice - closestMidpoint);
+          return distance < closestDistance ? gap : closest;
+        });
+        
+        const nearestMidpoint = (nearest.upperLevel + nearest.lowerLevel) / 2;
+        nearestUnfilledGap = {
+          type: nearest.type,
+          distance: Math.round(Math.abs(currentPrice - nearestMidpoint) * 100) / 100,
+          level: Math.round(nearestMidpoint * 100) / 100,
+        };
+      }
+      
+      return {
+        ticker: tickerSymbol,
+        fvgs: fvgs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), // Most recent first
+        summary: {
+          totalGaps: fvgs.length,
+          bullishGaps,
+          bearishGaps,
+          unfilledGaps,
+          largestGap,
+        },
+        currentPrice: Math.round(currentPrice * 100) / 100,
+        nearestUnfilledGap,
+      };
+    } catch (error) {
+      return {
+        ticker: tickerSymbol,
+        summary: {
+          totalGaps: 0,
+          bullishGaps: 0,
+          bearishGaps: 0,
+          unfilledGaps: 0,
+        },
+        error: error instanceof Error ? error.message : 'Failed to detect FVGs',
       };
     }
   },
