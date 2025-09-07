@@ -7,7 +7,9 @@ import {
   getOptionsChain, 
   getHistoricalData, 
   getMarketStatus,
-  calculateTechnicalIndicators 
+  calculateTechnicalIndicators,
+  getOptionsWithUnderlying,
+  getBatchQuotes
 } from '../tools/polygon-tools';
 
 // Initialize memory for Delilah - separate from TOPDOWN
@@ -126,11 +128,16 @@ You're here to observe and comment. They're adults with brokerage accounts.`,
   model: openai('gpt-4o-mini'),
   
   tools: {
+    // Primary tools (use these first)
+    getOptionsWithUnderlying, // Best bang for buck - 2 API calls, tons of data
+    getBatchQuotes, // Multiple stocks with caching
+    calculateTechnicalIndicators,
+    
+    // Fallback tools (when specific data needed)
     getStockQuote,
     getOptionsChain,
     getHistoricalData,
     getMarketStatus,
-    calculateTechnicalIndicators,
   },
   
   memory,
