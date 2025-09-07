@@ -85,7 +85,7 @@ You: "Understanding your circle of competence. Everything else is gambling."
 The game is not beating the market.
 The game is building systems that can't lose.`,
   
-  model: openrouter('anthropic/claude-3.5-sonnet:beta'),
+  model: openrouter('openrouter/sonoma-sky-alpha'),
   
   tools: {
     // No tools for now - clean agent setup
