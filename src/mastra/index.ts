@@ -4,6 +4,7 @@ import { PinoLogger } from '@mastra/loggers';
 import { sqlAgent } from './agents/sql-agent';
 import { topdownV1 } from './agents/topdown-v1';
 import { delilah } from './agents/delilah';
+import { mister } from './agents/mister';
 import { databaseQueryWorkflow } from './workflows/database-query-workflow';
 
 export const mastra = new Mastra({
@@ -11,6 +12,7 @@ export const mastra = new Mastra({
     sqlAgent,
     topdownV1,
     delilah,
+    mister,
   },
   workflows: {
     databaseQueryWorkflow,
