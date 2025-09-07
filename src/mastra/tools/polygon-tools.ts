@@ -26,47 +26,48 @@ interface QueuedRequest {
 }
 
 const requestQueue: QueuedRequest[] = [];
-let isProcessingQueue = false;
-let lastRequestTimes: number[] = [];
 const RATE_LIMIT = 5;
 const RATE_WINDOW = 60000; // 1 minute
 
 // Start queue processor
-setInterval(processQueue, 12000); // Process every 12 seconds (5 requests/min)
+let isProcessing = false;
+let requestHistory: number[] = [];
 
 async function processQueue() {
-  if (isProcessingQueue || requestQueue.length === 0) return;
+  if (isProcessing || requestQueue.length === 0) return;
   
-  isProcessingQueue = true;
+  isProcessing = true;
   const now = Date.now();
   
   // Clean old request times
-  lastRequestTimes = lastRequestTimes.filter(time => now - time < RATE_WINDOW);
+  requestHistory = requestHistory.filter(time => now - time < RATE_WINDOW);
   
-  // Process up to available rate limit
-  const availableRequests = RATE_LIMIT - lastRequestTimes.length;
-  const toProcess = Math.min(availableRequests, requestQueue.length);
-  
-  // Sort by priority (higher first) then by timestamp (older first)
-  requestQueue.sort((a, b) => {
-    if (a.priority !== b.priority) return b.priority - a.priority;
-    return a.timestamp - b.timestamp;
-  });
-  
-  for (let i = 0; i < toProcess; i++) {
-    const request = requestQueue.shift();
-    if (!request) break;
+  // Process while we have capacity
+  while (requestQueue.length > 0 && requestHistory.length < RATE_LIMIT) {
+    const request = requestQueue.shift()!;
+    requestHistory.push(now);
     
-    try {
-      const data = await executeRequest(request.endpoint);
-      request.resolve(data);
-      lastRequestTimes.push(Date.now());
-    } catch (error) {
-      request.reject(error);
-    }
+    // Make the actual API call
+    executeRequest(request.endpoint)
+      .then(data => {
+        // Cache the response
+        responseCache.set(request.endpoint, {
+          data,
+          timestamp: now,
+          ttl: CACHE_TTL,
+        });
+        request.resolve(data);
+      })
+      .catch(request.reject);
   }
   
-  isProcessingQueue = false;
+  isProcessing = false;
+  
+  // Schedule next processing if queue not empty
+  if (requestQueue.length > 0) {
+    const nextSlot = Math.max(0, RATE_WINDOW - (now - requestHistory[0]));
+    setTimeout(processQueue, Math.min(nextSlot, 12000));
+  }
 }
 
 async function executeRequest(endpoint: string) {
@@ -75,15 +76,24 @@ async function executeRequest(endpoint: string) {
     throw new Error('POLYGON_API_KEY not configured');
   }
   
-  const response = await fetch(
-    `https://api.polygon.io${endpoint}${endpoint.includes('?') ? '&' : '?'}apiKey=${apiKey}`
-  );
+  // Ensure proper URL construction
+  const baseUrl = 'https://api.polygon.io';
+  const url = endpoint.startsWith('/') ? `${baseUrl}${endpoint}` : `${baseUrl}/${endpoint}`;
+  const finalUrl = url.includes('?') ? `${url}&apiKey=${apiKey}` : `${url}?apiKey=${apiKey}`;
+  
+  console.log(`[POLYGON API] Fetching: ${endpoint}`);
+  
+  const response = await fetch(finalUrl);
   
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[POLYGON API ERROR] ${response.status}: ${errorText}`);
     throw new Error(`Polygon API error: ${response.status} ${response.statusText}`);
   }
   
-  return response.json();
+  const data = await response.json();
+  console.log(`[POLYGON API] Success: ${endpoint}`);
+  return data;
 }
 
 // Smart request function with caching and queuing
@@ -91,7 +101,7 @@ async function polygonRequest(endpoint: string, options: {
   priority?: number;
   ttl?: number;
   forceRefresh?: boolean;
-} = {}) {
+} = {}): Promise<any> {
   const { priority = 1, ttl = CACHE_TTL, forceRefresh = false } = options;
   
   // Check cache first
@@ -107,22 +117,16 @@ async function polygonRequest(endpoint: string, options: {
   return new Promise((resolve, reject) => {
     requestQueue.push({
       endpoint,
-      resolve: (data) => {
-        // Cache the response
-        responseCache.set(endpoint, {
-          data,
-          timestamp: Date.now(),
-          ttl,
-        });
-        console.log(`[API CALL] ${endpoint} - Queue: ${requestQueue.length}`);
-        resolve(data);
-      },
+      resolve,
       reject,
       priority,
       timestamp: Date.now(),
     });
     
-    // Try to process immediately if under rate limit
+    // Sort by priority
+    requestQueue.sort((a, b) => b.priority - a.priority);
+    
+    // Try to process immediately
     processQueue();
   });
 }
@@ -136,6 +140,9 @@ setInterval(() => {
     }
   }
 }, 60000); // Clean every minute
+
+// Start queue processor periodically
+setInterval(processQueue, 1000); // Check every second
 
 // Get stock quote (delayed)
 export const getStockQuote = createTool({
@@ -154,17 +161,39 @@ export const getStockQuote = createTool({
     timestamp: z.string().optional(),
     error: z.string().optional(),
   }),
-  execute: async ({ ticker }) => {
+  execute: async (inputs) => {
+    // Debug logging
+    console.log('[DEBUG] getStockQuote inputs:', JSON.stringify(inputs));
+    
+    // Mastra passes params in different ways depending on context
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    
+    // If ticker is still an object, it might be the context itself
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      console.error('[ERROR] Invalid ticker type:', typeof ticker, ticker);
+      return {
+        ticker: 'UNKNOWN',
+        error: 'Invalid ticker format provided',
+      };
+    }
+    
     try {
+      const tickerSymbol = ticker.toUpperCase();
+      
       const data = await polygonRequest(
-        `/v2/aggs/ticker/${ticker.toUpperCase()}/prev`,
+        `/v2/aggs/ticker/${tickerSymbol}/prev`,
         { priority: 2 } // Higher priority for quotes
       );
       
       if (data.results && data.results.length > 0) {
         const result = data.results[0];
         return {
-          ticker: ticker.toUpperCase(),
+          ticker: tickerSymbol,
           price: result.c, // closing price
           change: result.c - result.o, // close - open
           changePercent: ((result.c - result.o) / result.o) * 100,
@@ -174,12 +203,12 @@ export const getStockQuote = createTool({
       }
       
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: 'No data available',
       };
     } catch (error) {
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         error: error instanceof Error ? error.message : 'Failed to fetch quote',
       };
     }
@@ -209,10 +238,28 @@ export const getOptionsChain = createTool({
     })).optional(),
     error: z.string().optional(),
   }),
-  execute: async ({ ticker, expiration }) => {
-    try {
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    let expiration = inputs?.context?.expiration || inputs?.expiration;
+    
+    // Handle nested objects
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      return {
+        ticker: 'UNKNOWN',
+          error: 'No ticker symbol provided',
+        };
+      }
+      
+      const tickerSymbol = ticker.toUpperCase();
+      
       // Get options contracts
-      const contractsEndpoint = `/v3/reference/options/contracts?underlying_ticker=${ticker.toUpperCase()}${
+      const contractsEndpoint = `/v3/reference/options/contracts?underlying_ticker=${tickerSymbol}${
         expiration ? `&expiration_date=${expiration}` : ''
       }&limit=100`;
       
@@ -228,18 +275,18 @@ export const getOptionsChain = createTool({
         }));
         
         return {
-          ticker: ticker.toUpperCase(),
+          ticker: tickerSymbol,
           options,
         };
       }
       
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: 'No options data available',
       };
     } catch (error) {
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: error instanceof Error ? error.message : 'Failed to fetch options',
       };
     }
@@ -269,10 +316,31 @@ export const getHistoricalData = createTool({
     })).optional(),
     error: z.string().optional(),
   }),
-  execute: async ({ ticker, from, to, timespan }) => {
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    let from = inputs?.context?.from || inputs?.from;
+    let to = inputs?.context?.to || inputs?.to;
+    let timespan = inputs?.context?.timespan || inputs?.timespan || 'day';
+    
+    // Handle nested objects
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      return {
+        ticker: 'UNKNOWN',
+        error: 'Invalid ticker format',
+      };
+    }
+    
     try {
+      const tickerSymbol = ticker.toUpperCase();
+      
       const data = await polygonRequest(
-        `/v2/aggs/ticker/${ticker.toUpperCase()}/range/1/${timespan}/${from}/${to}`
+        `/v2/aggs/ticker/${tickerSymbol}/range/1/${timespan}/${from}/${to}`
       );
       
       if (data.results && data.results.length > 0) {
@@ -286,18 +354,18 @@ export const getHistoricalData = createTool({
         }));
         
         return {
-          ticker: ticker.toUpperCase(),
+          ticker: tickerSymbol,
           bars,
         };
       }
       
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: 'No historical data available',
       };
     } catch (error) {
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: error instanceof Error ? error.message : 'Failed to fetch historical data',
       };
     }
@@ -377,14 +445,34 @@ export const getOptionsWithUnderlying = createTool({
     }).optional(),
     error: z.string().optional(),
   }),
-  execute: async ({ ticker, expiration, analyzeDays }) => {
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    let expiration = inputs?.context?.expiration || inputs?.expiration;
+    let analyzeDays = inputs?.context?.analyzeDays || inputs?.analyzeDays || 30;
+    
+    // Handle nested objects
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      return {
+        ticker: 'UNKNOWN',
+        error: 'Invalid ticker format',
+      };
+    }
+    
     try {
+      const tickerSymbol = ticker.toUpperCase();
+      
       // Get historical data first (1 call, lots of data)
       const to = new Date().toISOString().split('T')[0];
       const from = new Date(Date.now() - analyzeDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const historicalData = await polygonRequest(
-        `/v2/aggs/ticker/${ticker.toUpperCase()}/range/1/day/${from}/${to}`,
+        `/v2/aggs/ticker/${tickerSymbol}/range/1/day/${from}/${to}`,
         { priority: 3, ttl: CACHE_TTL } // High priority, longer cache
       );
       
@@ -433,7 +521,7 @@ export const getOptionsWithUnderlying = createTool({
       }
       
       // Get options chain (1 more call)
-      const contractsEndpoint = `/v3/reference/options/contracts?underlying_ticker=${ticker.toUpperCase()}${
+      const contractsEndpoint = `/v3/reference/options/contracts?underlying_ticker=${tickerSymbol}${
         expiration ? `&expiration_date=${expiration}` : ''
       }&limit=200`; // Get more contracts in one call
       
@@ -480,14 +568,14 @@ export const getOptionsWithUnderlying = createTool({
       }
       
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         underlying,
         options: options.slice(0, 50), // Limit response size
         analysis,
       };
     } catch (error) {
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: error instanceof Error ? error.message : 'Failed to fetch data',
       };
     }
@@ -513,17 +601,41 @@ export const getBatchQuotes = createTool({
     })),
     errors: z.array(z.string()).optional(),
   }),
-  execute: async ({ tickers }) => {
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let tickers = inputs?.context?.tickers || inputs?.tickers || inputs;
+    
+    // Handle if tickers is a single ticker string
+    if (typeof tickers === 'string') {
+      tickers = [tickers];
+    }
+    
+    // Handle nested objects
+    if (typeof tickers === 'object' && tickers !== null && 'tickers' in tickers) {
+      tickers = tickers.tickers;
+    }
+    
     const quotes = [];
     const errors = [];
+    
+    // Validate tickers array
+    if (!Array.isArray(tickers) || tickers.length === 0) {
+      return { 
+        quotes: [], 
+        errors: ['No valid tickers provided'] 
+      };
+    }
     
     // Limit to 10 tickers to be reasonable
     const limitedTickers = tickers.slice(0, 10);
     
     for (const ticker of limitedTickers) {
+      if (!ticker) continue;
+      
       try {
+        const tickerSymbol = ticker.toUpperCase();
         // Check cache first
-        const cacheKey = `/v2/aggs/ticker/${ticker.toUpperCase()}/prev`;
+        const cacheKey = `/v2/aggs/ticker/${tickerSymbol}/prev`;
         const cached = responseCache.get(cacheKey);
         
         if (cached && Date.now() - cached.timestamp < cached.ttl) {
@@ -531,7 +643,7 @@ export const getBatchQuotes = createTool({
           const result = cached.data.results?.[0];
           if (result) {
             quotes.push({
-              ticker: ticker.toUpperCase(),
+              ticker: tickerSymbol,
               price: result.c,
               change: result.c - result.o,
               changePercent: ((result.c - result.o) / result.o) * 100,
@@ -548,7 +660,7 @@ export const getBatchQuotes = createTool({
         if (data.results && data.results.length > 0) {
           const result = data.results[0];
           quotes.push({
-            ticker: ticker.toUpperCase(),
+            ticker: tickerSymbol,
             price: result.c,
             change: result.c - result.o,
             changePercent: ((result.c - result.o) / result.o) * 100,
@@ -583,13 +695,32 @@ export const calculateTechnicalIndicators = createTool({
     volatility: z.number().optional(),
     error: z.string().optional(),
   }),
-  execute: async ({ ticker, days }) => {
+  execute: async (inputs) => {
+    // Extract parameters robustly
+    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
+    let days = inputs?.context?.days || inputs?.days || 20;
+    
+    // Handle nested objects
+    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
+      ticker = ticker.ticker;
+    }
+    
+    // Ensure ticker is a string
+    if (typeof ticker !== 'string') {
+      return {
+        ticker: 'UNKNOWN',
+        error: 'Invalid ticker format',
+      };
+    }
+    
     try {
+      const tickerSymbol = ticker.toUpperCase();
+      
       const to = new Date().toISOString().split('T')[0];
       const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const data = await polygonRequest(
-        `/v2/aggs/ticker/${ticker.toUpperCase()}/range/1/day/${from}/${to}`
+        `/v2/aggs/ticker/${tickerSymbol}/range/1/day/${from}/${to}`
       );
       
       if (data.results && data.results.length > 0) {
@@ -622,7 +753,7 @@ export const calculateTechnicalIndicators = createTool({
         const rsi = 100 - (100 / (1 + rs));
         
         return {
-          ticker: ticker.toUpperCase(),
+          ticker: tickerSymbol,
           sma20: Math.round(sma20 * 100) / 100,
           rsi: Math.round(rsi * 100) / 100,
           volume20DayAvg: Math.round(volume20DayAvg),
@@ -632,12 +763,12 @@ export const calculateTechnicalIndicators = createTool({
       }
       
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: 'Insufficient data for calculations',
       };
     } catch (error) {
       return {
-        ticker: ticker.toUpperCase(),
+        ticker: tickerSymbol,
         error: error instanceof Error ? error.message : 'Failed to calculate indicators',
       };
     }
