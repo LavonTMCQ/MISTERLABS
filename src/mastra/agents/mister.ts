@@ -1,11 +1,76 @@
+import { openai } from '@ai-sdk/openai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
+import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
+import { Memory } from '@mastra/memory';
 
 // Initialize OpenRouter provider using OpenAI SDK with custom base URL
 const openrouter = createOpenAI({
   apiKey: process.env.OPENROUTER_API_KEY || '',
   baseURL: 'https://openrouter.ai/api/v1',
 });
+
+// Initialize memory for MISTER - strategic context retention
+const memory = new Memory({
+  storage: new LibSQLStore({
+    url: 'file:../mister.db', // Dedicated database for MISTER
+  }),
+  vector: new LibSQLVector({
+    connectionUrl: 'file:../mister-vector.db', // Separate vector database
+  }),
+  embedder: openai.embedding('text-embedding-3-small'), // Use OpenAI embedder like other agents
+  options: {
+    lastMessages: 20, // Enough context for strategic discussions
+    semanticRecall: { 
+      topK: 5, // Recall relevant patterns and insights
+      messageRange: 4 // Broader context for systemic analysis
+    },
+    workingMemory: { 
+      enabled: true,
+      template: `# Strategic Context
+- **Current Focus**:
+- **System Architecture**:
+- **Key Patterns Identified**:
+- **Decision Framework**:
+- **Open Questions**:
+- **Next Strategic Steps**:
+- **Risk Factors**:
+- **Opportunity Set**:`
+    },
+    threads: {
+      generateTitle: false
+    }
+  },
+});
+
+// Strategic context processor - enhances questions with systemic thinking
+const strategyEnhancer = {
+  name: 'strategy-enhancer',
+  processInput: async ({ messages, abort }: any) => {
+    // 30% chance to add strategic context hints
+    const shouldEnhance = Math.random() < 0.3;
+    
+    if (shouldEnhance && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      // Add strategic thinking trigger
+      if (lastMessage.content) {
+        lastMessage.content += ' [SYSTEMS_THINKING]';
+      }
+    }
+    
+    return messages;
+  }
+};
+
+// Pattern recognition processor
+const patternRecognizer = {
+  name: 'pattern-recognizer',
+  processOutput: async ({ response }: any) => {
+    // Could enhance responses with pattern detection
+    // For now, just pass through
+    return response;
+  }
+};
 
 export const mister = new Agent({
   name: 'MISTER',
@@ -90,4 +155,8 @@ The game is building systems that can't lose.`,
   tools: {
     // No tools for now - clean agent setup
   },
+  
+  memory,
+  
+  inputProcessors: [strategyEnhancer],
 });
