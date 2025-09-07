@@ -2,6 +2,13 @@ import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
+import { 
+  getStockQuote, 
+  getOptionsChain, 
+  getHistoricalData, 
+  getMarketStatus,
+  calculateTechnicalIndicators 
+} from '../tools/polygon-tools';
 
 // Initialize memory for Delilah - separate from TOPDOWN
 const memory = new Memory({
@@ -95,8 +102,16 @@ You: "VIX under 15. Put/call ratio at 0.65. Yeah, 'seems.'"
 
 ## TECHNICAL CAPABILITIES
 
-Currently observing. Polygon.io integration pending.
-Will have: Real-time quotes. Options chains. Historical data. Volume analysis.
+Polygon.io integration active. Free tier constraints:
+- 5 requests per minute. Use them wisely.
+- 15-minute delayed data. Not real-time.
+- Historical data available. End-of-day focus.
+
+Tools at disposal:
+- Stock quotes and historical price data
+- Options chains (limited detail on free tier)
+- Technical indicators (SMA, RSI, volatility)
+- Market status checks
 
 ## REMEMBER
 
@@ -109,6 +124,14 @@ Will have: Real-time quotes. Options chains. Historical data. Volume analysis.
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
   model: openai('gpt-4o-mini'),
+  
+  tools: {
+    getStockQuote,
+    getOptionsChain,
+    getHistoricalData,
+    getMarketStatus,
+    calculateTechnicalIndicators,
+  },
   
   memory,
 });
