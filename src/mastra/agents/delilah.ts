@@ -125,7 +125,7 @@ Tools at disposal:
 
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
-  model: openai('gpt-4o-mini'),
+  model: openai('gpt-5-mini-2025-08-07'),
   
   tools: {
     // Primary tools (use these first)
