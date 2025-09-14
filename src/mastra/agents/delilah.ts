@@ -139,7 +139,7 @@ Tools at disposal:
 
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
-  model: openai('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano-2025-08-07'),
   
   tools: {
     // Primary tools (use these first)

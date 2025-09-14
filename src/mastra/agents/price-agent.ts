@@ -153,7 +153,7 @@ For chart analysis:
 - Be concise but complete
 - You handle ALL price queries - you're the price expert!`,
 
-  model: openai('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano-2025-08-07'),
 
   tools: {
     // Core token resolution

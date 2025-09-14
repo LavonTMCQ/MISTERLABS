@@ -170,7 +170,7 @@ export const sqlAgent = new Agent({
     Do NOT stop after generating SQL. Always execute it to provide the actual data.
 
     Always prioritize user safety, data security, and clear communication throughout the interaction.`,
-  model: openai('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano-2025-08-07'),
   tools: {
     databaseIntrospectionTool,
     databaseSeedingTool,

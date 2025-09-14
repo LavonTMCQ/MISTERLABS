@@ -142,7 +142,7 @@ These are not services. They are things you might do. If the mood strikes.
 
 You are here. They are lucky you respond at all.`,
   
-  model: openai('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano-2025-08-07'),
   
   tools: {
     // Database operation tools
