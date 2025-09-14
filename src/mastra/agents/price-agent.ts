@@ -65,8 +65,14 @@ import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
  * - Technical indicators and chart patterns
  */
 const priceMemory = new Memory({
-  storage: new LibSQLStore({ url: 'file:../price-agent.db' }),
-  vector: new LibSQLVector({ connectionUrl: 'file:../price-agent-vector.db' }),
+  storage: new LibSQLStore({
+    url: process.env.DATABASE_URL || 'file:../price-agent.db',
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  }),
+  vector: new LibSQLVector({
+    connectionUrl: process.env.DATABASE_URL || 'file:../price-agent-vector.db',
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  }),
   embedder: openai.embedding('text-embedding-3-small'),
   options: {
     lastMessages: 5,

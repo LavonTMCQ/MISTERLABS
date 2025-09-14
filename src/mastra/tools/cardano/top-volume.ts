@@ -1,5 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { mapTimePhraseToTapTools } from '../../utils/timeframe';
 
 // Simple logger implementation since the config/logging file is missing
 const logger = {
@@ -15,7 +16,7 @@ const TAPTOOLS_BASE_URL = "https://openapi.taptools.io/api/v1";
 // Known stablecoins in the Cardano ecosystem
 const CARDANO_STABLECOINS = [
   'iUSD', 'DJED', 'USDM', 'USDA', 'USDC', 'USDT', 'BUSD', 'DAI', 'TUSD', 'DUSD',
-  'XUSD', 'JUSD', 'IUSD', 'SUSD', 'NUSD'
+  'XUSD', 'JUSD', 'IUSD', 'SUSD', 'NUSD', 'RSERG'
 ].map(s => s.toLowerCase());
 
 // Helper function to check if a token is a stablecoin
@@ -151,6 +152,7 @@ export const CardanoTopVolume = createTool({
       .optional()
       .default('24h')
       .describe('Time period for volume data (default: 24h)'),
+    phrase: z.string().optional().default('').describe('Natural timeframe phrase (e.g., today, week, month)'),
     page: z.number()
       .min(1)
       .optional()
@@ -164,8 +166,8 @@ export const CardanoTopVolume = createTool({
       .describe('Number of results per page (default: 50, max: 100)'),
     filterStablecoins: z.boolean()
       .optional()
-      .default(false)
-      .describe('Filter out stablecoins like iUSD, DJED, USDM from results (default: false)')
+      .default(true)
+      .describe('Filter out stablecoins like iUSD, DJED, USDM from results (default: true)')
   }),
   async execute(input: { context?: Record<string, any>; args?: Record<string, any> }) {
     try {
@@ -173,7 +175,7 @@ export const CardanoTopVolume = createTool({
       const params = input?.context || input?.args || {};
 
       // Apply defaults if parameters are missing
-      const timeframe = params.timeframe || '24h';
+      const timeframe = mapTimePhraseToTapTools(params.phrase) || params.timeframe || '24h';
       const page = params.page || 1;
       const perPage = params.perPage || 50; // Default to 50 tokens per page
       const filterStablecoins = params.filterStablecoins !== undefined ? params.filterStablecoins : false;

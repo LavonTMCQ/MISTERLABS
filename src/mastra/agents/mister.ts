@@ -28,8 +28,14 @@ const openai = createOpenAI({
 
 // Lightweight memory for MISTER (no exposed templates)
 const memory = new Memory({
-  storage: new LibSQLStore({ url: 'file:../mister.db' }),
-  vector: new LibSQLVector({ connectionUrl: 'file:../mister-vector.db' }),
+  storage: new LibSQLStore({
+    url: process.env.DATABASE_URL || 'file:../mister.db',
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  }),
+  vector: new LibSQLVector({
+    connectionUrl: process.env.DATABASE_URL || 'file:../mister-vector.db',
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  }),
   embedder: openai.embedding('text-embedding-3-small'),
   options: {
     lastMessages: 5,

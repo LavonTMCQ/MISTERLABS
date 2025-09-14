@@ -1,5 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { mapTimePhraseToTapTools } from '../../utils/timeframe';
 
 // Simple logger implementation since the config/logging file is missing
 const logger = {
@@ -15,7 +16,7 @@ const TAPTOOLS_BASE_URL = "https://openapi.taptools.io/api/v1";
 // Known stablecoins in the Cardano ecosystem
 const CARDANO_STABLECOINS = [
   'iUSD', 'DJED', 'USDM', 'USDA', 'USDC', 'USDT', 'BUSD', 'DAI', 'TUSD', 'DUSD',
-  'XUSD', 'JUSD', 'IUSD', 'SUSD', 'NUSD'
+  'XUSD', 'JUSD', 'IUSD', 'SUSD', 'NUSD', 'RSERG'
 ].map(s => s.toLowerCase());
 
 // Helper function to check if a token is a stablecoin
@@ -151,6 +152,7 @@ export const CardanoTopMarketCap = createTool({
       .optional()
       .default('mcap')
       .describe('Sort by circulating market cap (default) or fully diluted value'),
+    phrase: z.string().optional().default('').describe('Natural timeframe phrase (e.g., today, week, month) - used for parity with volume tool'),
     page: z.number()
       .min(1)
       .optional()
@@ -164,8 +166,8 @@ export const CardanoTopMarketCap = createTool({
       .describe('Number of results per page (default: 20, max: 100)'),
     filterStablecoins: z.boolean()
       .optional()
-      .default(false)
-      .describe('Filter out stablecoins like iUSD, DJED, USDM from results (default: false)')
+      .default(true)
+      .describe('Filter out stablecoins like iUSD, DJED, USDM from results (default: true)')
   }),
   async execute(input: { context?: Record<string, any>; args?: Record<string, any> }) {
     try {
