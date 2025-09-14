@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "mastra dev",
+    "dev": "PORT=4113 mastra dev",
+    "dev:4113": "PORT=4113 mastra dev",
     "build": "mastra build",
     "start": "mastra start",
     "db:migrate": "node scripts/migrate.mjs",
