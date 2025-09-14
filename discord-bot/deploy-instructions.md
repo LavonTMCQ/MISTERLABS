@@ -20,7 +20,7 @@ railway link
 # 5. Set your environment variables
 railway variables set DISCORD_BOT_TOKEN="your_discord_bot_token_here"
 railway variables set MASTRA_BASE_URL="https://modern-purple-ram.mastra.cloud"
-railway variables set AGENT_ID="topdownV1"
+railway variables set AGENT_ID="mister"
 
 # 6. Deploy
 railway up

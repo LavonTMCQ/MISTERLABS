@@ -27,7 +27,7 @@ railway init
 echo "🔐 Setting environment variables..."
 railway variables set DISCORD_BOT_TOKEN="$DISCORD_BOT_TOKEN"
 railway variables set MASTRA_BASE_URL="https://modern-purple-ram.mastra.ai"
-railway variables set AGENT_ID="topdownV1"
+railway variables set AGENT_ID="mister"
 
 # Deploy
 echo "🚀 Deploying to Railway..."

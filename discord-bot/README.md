@@ -1,6 +1,6 @@
 # MISTERLABS Discord Bot
 
-A simple Discord bot that connects to TOPDOWN v1 agent on Mastra Cloud. Just mention the bot and chat naturally - the LLM handles all responses.
+A simple Discord bot that connects to the MISTER agent on Mastra Cloud. Just mention the bot and chat naturally — the agent handles all responses.
 
 ## Features
 
@@ -30,7 +30,7 @@ railway init
 # Set environment variables
 railway variables set DISCORD_BOT_TOKEN="your_token_here"
 railway variables set MASTRA_BASE_URL="https://modern-purple-ram.mastra.cloud"
-railway variables set AGENT_ID="topdownV1"
+railway variables set AGENT_ID="mister"
 
 # Deploy
 railway up
@@ -47,13 +47,13 @@ cd discord-bot
 
 - `DISCORD_BOT_TOKEN` - Your Discord bot token
 - `MASTRA_BASE_URL` - Your Mastra Cloud URL 
-- `AGENT_ID` - The agent ID (default: topdownV1)
+- `AGENT_ID` - The agent ID (default: mister)
 
 ## Usage
 
 1. **Mention the bot**: `@bot how's the weather?`
 2. **DM the bot**: Send direct messages without mention
-3. **Natural conversation**: The bot responds using the TOPDOWN v1 agent
+3. **Natural conversation**: The bot responds using the MISTER agent
 
 ## Railway CLI Commands
 
@@ -81,5 +81,5 @@ npm start
 ## Notes
 
 - The bot only responds when mentioned or in DMs
-- All responses come directly from the TOPDOWN v1 agent
+- All responses come directly from the MISTER agent
 - No commands or special syntax needed

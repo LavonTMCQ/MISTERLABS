@@ -5,7 +5,7 @@ const axios = require('axios');
 // Bot configuration
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const MASTRA_BASE_URL = process.env.MASTRA_BASE_URL || 'https://cloud.mastra.ai';
-const AGENT_ID = process.env.AGENT_ID || 'topdownV1';
+const AGENT_ID = process.env.AGENT_ID || 'mister';
 
 // Create Discord client with minimal intents
 const client = new Client({
