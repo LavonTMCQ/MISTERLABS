@@ -1,8 +1,14 @@
 import { Agent } from '@mastra/core/agent';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY || '',
+import { createOpenAI } from '@ai-sdk/openai';
+const openai = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
+  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
+  headers: process.env.OPENROUTER_API_KEY
+    ? {
+        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
+        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
+      }
+    : undefined,
 });
 
 // Token lookup and discovery tools
@@ -147,7 +153,7 @@ For chart analysis:
 - Be concise but complete
 - You handle ALL price queries - you're the price expert!`,
 
-  model: openrouter('openai/gpt-5-nano'), // Fast and efficient for price queries
+  model: openai('openai/gpt-5-nano'),
 
   tools: {
     // Core token resolution

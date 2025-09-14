@@ -1,5 +1,4 @@
-import { openai } from '@ai-sdk/openai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAI } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -14,8 +13,17 @@ import { CMCquoteslatest } from '../tools/cmc/quotes-latest';
 import { delegateToSQLAgent } from '../tools/orchestrator-tools';
 import { delegateToPriceAgent } from '../tools/agent-delegation/call-price-agent';
 
-// Initialize OpenRouter provider
-const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' });
+// OpenAI V1 provider with OpenRouter base (if key present)
+const openai = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
+  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
+  headers: process.env.OPENROUTER_API_KEY
+    ? {
+        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
+        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
+      }
+    : undefined,
+});
 
 // Lightweight memory for MISTER (no exposed templates)
 const memory = new Memory({
@@ -66,8 +74,7 @@ Output:
 • If a tool fails, say what happened and suggest the next step.
 `,
   
-  // model: openai('gpt-4o-mini'), // Fallback if no OpenRouter key
-  model: openrouter('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano'),
   
   tools: {
     // DB + token tools

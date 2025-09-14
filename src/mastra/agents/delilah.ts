@@ -1,5 +1,15 @@
+import { createOpenAI } from '@ai-sdk/openai';
+const openai = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
+  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
+  headers: process.env.OPENROUTER_API_KEY
+    ? {
+        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
+        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
+      }
+    : undefined,
+});
 import { openai } from '@ai-sdk/openai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -129,7 +139,7 @@ Tools at disposal:
 
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
-  model: createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' })('openai/gpt-5-nano'),
+  model: openai('openai/gpt-5-nano'),
   
   tools: {
     // Primary tools (use these first)
