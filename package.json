@@ -6,7 +6,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
+    "start": "mastra start",
+    "db:migrate": "node scripts/migrate.mjs",
+    "tokens:verify": "node scripts/verify-top-mcap.mjs",
+    "tokens:sync": "node scripts/sync-tokens.mjs"
   },
   "keywords": [],
   "author": "",
@@ -22,15 +25,19 @@
     "@mastra/libsql": "latest",
     "@mastra/loggers": "latest",
     "@mastra/memory": "latest",
+    "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^4.3.17",
+    "axios": "^1.12.2",
     "csv-parse": "^5.6.0",
     "dotenv": "^17.0.1",
     "pg": "^8.16.3",
+    "ws": "^8.18.3",
     "zod": "^3.25.75"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
     "@types/pg": "^8.15.5",
+    "@types/ws": "^8.18.1",
     "mastra": "latest",
     "typescript": "^5.8.3"
   }

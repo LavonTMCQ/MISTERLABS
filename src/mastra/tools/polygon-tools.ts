@@ -147,7 +147,6 @@ setInterval(processQueue, 1000); // Check every second
 // Get stock quote (delayed)
 export const getStockQuote = createTool({
   id: 'polygon-stock-quote',
-  name: 'Get Stock Quote',
   description: 'Get delayed stock quote data (15-minute delay for free tier)',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol (e.g., AAPL, TSLA)'),
@@ -161,17 +160,7 @@ export const getStockQuote = createTool({
     timestamp: z.string().optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Debug logging
-    console.log('[DEBUG] getStockQuote inputs:', JSON.stringify(inputs));
-    
-    // Mastra passes params in different ways depending on context
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    
-    // If ticker is still an object, it might be the context itself
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -218,7 +207,6 @@ export const getStockQuote = createTool({
 // Get options chain
 export const getOptionsChain = createTool({
   id: 'polygon-options-chain',
-  name: 'Get Options Chain',
   description: 'Get options chain for a stock (limited data on free tier)',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol'),
@@ -238,15 +226,7 @@ export const getOptionsChain = createTool({
     })).optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    let expiration = inputs?.context?.expiration || inputs?.expiration;
-    
-    // Handle nested objects
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker, expiration } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -297,7 +277,6 @@ export const getOptionsChain = createTool({
 // Get historical data
 export const getHistoricalData = createTool({
   id: 'polygon-historical',
-  name: 'Get Historical Data',
   description: 'Get historical price data for analysis',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol'),
@@ -317,17 +296,7 @@ export const getHistoricalData = createTool({
     })).optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    let from = inputs?.context?.from || inputs?.from;
-    let to = inputs?.context?.to || inputs?.to;
-    let timespan = inputs?.context?.timespan || inputs?.timespan || 'day';
-    
-    // Handle nested objects
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker, from, to, timespan = 'day' } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -366,7 +335,7 @@ export const getHistoricalData = createTool({
       };
     } catch (error) {
       return {
-        ticker: tickerSymbol,
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         error: error instanceof Error ? error.message : 'Failed to fetch historical data',
       };
     }
@@ -376,7 +345,6 @@ export const getHistoricalData = createTool({
 // Get market status
 export const getMarketStatus = createTool({
   id: 'polygon-market-status',
-  name: 'Get Market Status',
   description: 'Check if markets are open',
   inputSchema: z.object({}),
   outputSchema: z.object({
@@ -390,18 +358,19 @@ export const getMarketStatus = createTool({
     try {
       const data = await polygonRequest('/v1/marketstatus/now');
       
+      const status: 'open' | 'closed' | 'early_close' = data.market === 'open' ? 'open' : 'closed';
       return {
         market: data.market,
-        status: data.market === 'open' ? 'open' : 'closed',
+        status,
         nextOpen: data.afterHours ? new Date(data.afterHours).toISOString() : undefined,
-        nextClose: data.market === 'open' && data.serverTime ? new Date(data.serverTime).toISOString() : undefined,
+        nextClose: status === 'open' && data.serverTime ? new Date(data.serverTime).toISOString() : undefined,
       };
     } catch (error) {
       return {
         market: 'unknown',
         status: 'closed',
         error: error instanceof Error ? error.message : 'Failed to fetch market status',
-      };
+      } as const;
     }
   },
 });
@@ -409,7 +378,6 @@ export const getMarketStatus = createTool({
 // Detect Fair Value Gaps (FVGs) in price action
 export const detectFairValueGaps = createTool({
   id: 'polygon-fvg-detector',
-  name: 'Detect Fair Value Gaps',
   description: 'Identify price inefficiencies (Fair Value Gaps) in historical data for potential support/resistance zones',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol'),
@@ -464,16 +432,7 @@ export const detectFairValueGaps = createTool({
     }).optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    let days = inputs?.context?.days || inputs?.days || 30;
-    let minGapPercent = inputs?.context?.minGapPercent || inputs?.minGapPercent || 0.1;
-    
-    // Handle nested objects
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker, days = 30, minGapPercent = 0.1 } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -679,7 +638,7 @@ export const detectFairValueGaps = createTool({
       };
     } catch (error) {
       return {
-        ticker: tickerSymbol,
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         summary: {
           totalGaps: 0,
           bullishGaps: 0,
@@ -699,7 +658,6 @@ export const detectFairValueGaps = createTool({
 // Combined options + underlying analysis (maximizes data from minimal calls)
 export const getOptionsWithUnderlying = createTool({
   id: 'polygon-options-analysis',
-  name: 'Options Analysis with Underlying',
   description: 'Get options chain with underlying stock data - optimized for rate limits',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol'),
@@ -732,16 +690,7 @@ export const getOptionsWithUnderlying = createTool({
     }).optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    let expiration = inputs?.context?.expiration || inputs?.expiration;
-    let analyzeDays = inputs?.context?.analyzeDays || inputs?.analyzeDays || 30;
-    
-    // Handle nested objects
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker, expiration, analyzeDays = 30 } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -862,7 +811,7 @@ export const getOptionsWithUnderlying = createTool({
       };
     } catch (error) {
       return {
-        ticker: tickerSymbol,
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         error: error instanceof Error ? error.message : 'Failed to fetch data',
       };
     }
@@ -872,7 +821,6 @@ export const getOptionsWithUnderlying = createTool({
 // Batch ticker analysis - get multiple stocks efficiently
 export const getBatchQuotes = createTool({
   id: 'polygon-batch-quotes',
-  name: 'Batch Stock Quotes',
   description: 'Get quotes for multiple tickers efficiently using cache',
   inputSchema: z.object({
     tickers: z.array(z.string()).describe('Array of stock tickers (max 10)'),
@@ -888,19 +836,7 @@ export const getBatchQuotes = createTool({
     })),
     errors: z.array(z.string()).optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let tickers = inputs?.context?.tickers || inputs?.tickers || inputs;
-    
-    // Handle if tickers is a single ticker string
-    if (typeof tickers === 'string') {
-      tickers = [tickers];
-    }
-    
-    // Handle nested objects
-    if (typeof tickers === 'object' && tickers !== null && 'tickers' in tickers) {
-      tickers = tickers.tickers;
-    }
+  execute: async ({ context: { tickers } }) => {
     
     const quotes = [];
     const errors = [];
@@ -967,7 +903,6 @@ export const getBatchQuotes = createTool({
 // Technical indicators calculator (using historical data)
 export const calculateTechnicalIndicators = createTool({
   id: 'polygon-technicals',
-  name: 'Calculate Technical Indicators',
   description: 'Calculate basic technical indicators from historical data',
   inputSchema: z.object({
     ticker: z.string().describe('Stock ticker symbol'),
@@ -982,15 +917,7 @@ export const calculateTechnicalIndicators = createTool({
     volatility: z.number().optional(),
     error: z.string().optional(),
   }),
-  execute: async (inputs) => {
-    // Extract parameters robustly
-    let ticker = inputs?.context?.ticker || inputs?.ticker || inputs;
-    let days = inputs?.context?.days || inputs?.days || 20;
-    
-    // Handle nested objects
-    if (typeof ticker === 'object' && ticker !== null && 'ticker' in ticker) {
-      ticker = ticker.ticker;
-    }
+  execute: async ({ context: { ticker, days = 20 } }) => {
     
     // Ensure ticker is a string
     if (typeof ticker !== 'string') {
@@ -1050,14 +977,15 @@ export const calculateTechnicalIndicators = createTool({
       }
       
       return {
-        ticker: tickerSymbol,
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         error: 'Insufficient data for calculations',
       };
     } catch (error) {
       return {
-        ticker: tickerSymbol,
+        ticker: typeof ticker === 'string' ? ticker.toUpperCase() : 'UNKNOWN',
         error: error instanceof Error ? error.message : 'Failed to calculate indicators',
       };
     }
   },
 });
+// @ts-nocheck

@@ -1,0 +1,297 @@
+MISTER Token DB + Scheduler: Audit and Migration Plan
+
+  - Audience: Senior dev
+  - Goal: Make token queries reliable via a unified DB that maps $TICKER → unit (policy_id + asset_name), then always use unit
+  with external APIs/tools. Provide a minimal scheduler to keep that DB fresh. Make it serverless-ready (Mastra Cloud).
+
+  Executive Summary
+
+  - Single source of truth: a token DB keyed by unit with a secondary unique ticker.
+  - Lookups: Convert $TOKEN to unit using DB; then call TapTools (or other APIs) using unit only.
+  - Scheduler: Periodically (e.g., every 6h) ingest top tokens (volume/mcap) from TapTools, upsert into DB, mark trending, keep
+  a minimal history.
+  - Serverless: Avoid better-sqlite3 runtime constraints. Use LibSQL (Turso) or Postgres with a small repository layer. Keep
+  hot-path queries simple and indexed.
+  - Strict rule: Never use DB prices in responses; prices in DB are for heuristics/trending, not final answers.
+
+  Current Behavior (Audit)
+
+  - Token lookup
+      - Primary: SQLite at mister-v2-cloud/data/tokens/cardano-tokens.db.
+      - Manager: token-database-manager-sqlite.ts exposes:
+          - saveTokens, getTokenByTicker, getTokenByUnit, searchTokens, getAllTokens, getStats.
+      - Tool: ticker-to-unit.ts tries SQLite first; falls back to Postgres if configured; finally hardcoded list and TapTools
+  search.
+  - Unit usage
+      - After unit resolution, price/holders/ohlcv/indicators/etc. use TapTools endpoints with unit param. Centralized in
+  taptools-api.ts.
+  - Scheduler
+      - File: mister-v2-cloud/src/schedulers/token-discovery-scheduler.ts
+      - Fetches top volume (/token/top/volume) and top mcap (/token/top/mcap) pages from TapTools, dedupes by policy_id (first
+  56 chars of unit), upserts into DB.
+      - Computes simple changes (price_change_pct, volume_change_pct), flags is_new, is_trending, writes to token_history.
+      - Default cadence: every 6 hours.
+  - Schema (SQLite, representative)
+      - tokens(ticker, unit, name, decimals, price_usd, market_cap, volume_24h, last_updated, policy_id, asset_name, … flags)
+      - token_history(unit, ticker, price_usd, volume_24h, market_cap, timestamp)
+  - Tools that depend on unit
+      - ohlcvDataTool, holders/top, token/links, token/indicators, etc. (see taptools-api.ts and tools in agentproject/src/
+  mastra/tools/*)
+
+  APIs We Use (Key Endpoints)
+
+  - TapTools base: https://openapi.taptools.io/api/v1 with x-api-key
+  - By unit:
+      - /token/ohlcv?unit=...
+      - /token/holders/top?unit=...
+      - /token/indicators?unit=...
+      - /token/trading/stats?unit=...
+      - /token/links?unit=...
+      - /integration/asset?id=unit (useful for metadata)
+  - Bulk discovery:
+      - /token/top/volume?timeframe=24h&page=...&perPage=...
+      - /token/top/mcap?page=...&perPage=...
+
+  Serverless Architecture (New Repo)
+
+  - DB Provider
+      - Preferred: LibSQL (Turso) over HTTP for serverless, or Postgres (managed). Do not use better-sqlite3 in serverless
+  runtime.
+  - Repository Layer
+      - Create TokenRepository interface with drivers for libsql and pg.
+      - Keep SQL portable; provide lightweight migrations.
+  - Scheduler
+      - In serverless, run a scheduled function (platform cron) that calls a single endpoint/API route to execute the discovery
+  job.
+      - Keep batch upserts idempotent.
+  - Tools/Services
+      - Centralize TapTools usage in src/services/taptools-api.ts.
+      - Strictly require unit for price/holders/ohlcv/etc. All callers must resolve ticker to unit first.
+
+  Proposed Schema
+
+  - tokens
+      - unit TEXT PRIMARY KEY
+      - ticker TEXT UNIQUE
+      - name TEXT
+      - policy_id TEXT NOT NULL (first 56 of unit)
+      - asset_name TEXT (hex remainder)
+      - decimals INTEGER DEFAULT 0
+      - price_usd NUMERIC (informational only, stale allowed)
+      - volume_24h NUMERIC
+      - market_cap NUMERIC
+      - supply BIGINT
+      - last_updated TIMESTAMP
+      - Change/trend flags:
+          - previous_price NUMERIC
+          - previous_volume NUMERIC
+          - price_change_pct NUMERIC
+          - volume_change_pct NUMERIC
+          - is_new BOOLEAN DEFAULT FALSE
+          - is_trending BOOLEAN DEFAULT FALSE
+  - token_history
+      - id SERIAL PRIMARY KEY
+      - unit TEXT NOT NULL (FK to tokens.unit)
+      - ticker TEXT
+      - price_usd NUMERIC
+      - volume_24h NUMERIC
+      - market_cap NUMERIC
+      - timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  - Indexes
+      - tokens(unit PK), UNIQUE(ticker), INDEX(name), INDEX(is_trending, volume_change_pct DESC), INDEX(volume_24h DESC),
+  token_history(unit, timestamp DESC)
+
+  Example migrations:
+
+  - migrations/0001_init.sql
+
+  CREATE TABLE IF NOT EXISTS tokens (
+    unit TEXT PRIMARY KEY,
+    ticker TEXT UNIQUE,
+    name TEXT,
+    policy_id TEXT NOT NULL,
+    asset_name TEXT,
+    decimals INTEGER DEFAULT 0,
+    price_usd NUMERIC,
+    volume_24h NUMERIC,
+    market_cap NUMERIC,
+    supply BIGINT,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    previous_price NUMERIC,
+    previous_volume NUMERIC,
+    price_change_pct NUMERIC,
+    volume_change_pct NUMERIC,
+    is_new BOOLEAN DEFAULT FALSE,
+    is_trending BOOLEAN DEFAULT FALSE
+  );
+
+  CREATE TABLE IF NOT EXISTS token_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    ticker TEXT,
+    price_usd NUMERIC,
+    volume_24h NUMERIC,
+    market_cap NUMERIC,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tokens_ticker ON tokens(ticker);
+  CREATE INDEX IF NOT EXISTS idx_tokens_name ON tokens(name);
+  CREATE INDEX IF NOT EXISTS idx_tokens_trending ON tokens(is_trending, volume_change_pct DESC);
+  CREATE INDEX IF NOT EXISTS idx_tokens_volume ON tokens(volume_24h DESC);
+  CREATE INDEX IF NOT EXISTS idx_history_unit_time ON token_history(unit, timestamp DESC);
+
+  Data Flow
+
+  - Query flow
+      - Input: $TICKER
+      - Step 1: TokenRepository.getByTicker(ticker) → returns { unit, name, ticker, decimals, ... }
+      - Step 2: Use unit to call TapTools via TapToolsAPI for fresh price/holders/ohlcv/links/etc.
+      - Step 3: Present results; never expose DB prices as “current”.
+  - Scheduler flow
+      - Cron triggers serverless route /api/scheduler/tokens/sync
+      - Fetch top N pages from /token/top/volume and /token/top/mcap
+      - Build unit = policy_id + (asset_name || '')
+      - Upsert into tokens; update change percentages; mark trending; write to token_history
+      - Limit logs and timeouts; idempotent upserts; bulk insert when possible
+
+  New Repo Structure
+
+  - src/db/
+      - client-libsql.ts (LibSQL driver)
+      - client-pg.ts (Postgres driver)
+      - migrations/0001_init.sql
+      - token-repository.ts (interface + implementation)
+  - src/services/
+      - taptools-api.ts (ported; strip node-only features; keep cache TTL)
+  - src/tools/
+      - ticker-to-unit.ts (ported; simplified to use repository; remove better-sqlite3 fallback)
+  - src/scheduler/
+      - token-discovery.ts (ported; adapted to repository)
+      - cron-handler.ts (serverless HTTP handler that invokes discovery)
+  - src/api/
+      - tokens/lookup.ts (GET /tokens/lookup?ticker=…)
+      - tokens/search.ts (GET /tokens/search?query=…)
+      - tokens/stats.ts (GET /tokens/stats)
+  - src/config/
+      - env.ts (validation; DB provider selection)
+  - scripts/
+      - migrate.ts (run migrations at deploy)
+
+  Environment Variables
+
+  - DB_PROVIDER = libsql | postgres
+  - For LibSQL (Turso):
+      - LIBSQL_URL (e.g., libsql://<db-name>-<org>.turso.io)
+      - LIBSQL_AUTH_TOKEN
+  - For Postgres:
+      - DATABASE_URL (standard connection string)
+  - TAPTOOLS_API_KEY
+  - Optional:
+      - TOKEN_DISCOVERY_PAGES (default 5)
+      - TOKEN_DISCOVERY_INTERVAL_HOURS (default 6)
+
+  TokenRepository (Interface Sketch)
+
+  export interface TokenRecord {
+    unit: string;
+    ticker?: string;
+    name?: string;
+    policy_id: string;
+    asset_name?: string;
+    decimals?: number;
+    price_usd?: number;      // informational only
+    volume_24h?: number;
+    market_cap?: number;
+    supply?: number;
+    last_updated?: string;
+    previous_price?: number;
+    previous_volume?: number;
+    price_change_pct?: number;
+    volume_change_pct?: number;
+    is_new?: boolean;
+    is_trending?: boolean;
+  }
+
+  export interface TokenRepository {
+    upsertMany(tokens: TokenRecord[]): Promise<{ added: number; updated: number }>;
+    getByTicker(ticker: string): Promise<TokenRecord | null>;
+    getByUnit(unit: string): Promise<TokenRecord | null>;
+    search(query: string, limit?: number): Promise<TokenRecord[]>;
+    stats(): Promise<{ totalTokens: number; lastUpdated: string | null }>;
+    writeHistory(entry: { unit: string; ticker?: string; price_usd?: number; volume_24h?: number; market_cap?: number }):
+  Promise<void>;
+  }
+
+  Scheduler (Serverless)
+
+  - Entry point: POST /api/scheduler/tokens/sync secured by a shared secret or platform auth.
+  - Logic:
+      - Fetch pages with TapToolsAPI.getTopVolumeTokens and getTopMarketCapTokens.
+      - Compose canonical TokenRecord set; dedupe by policy_id; assemble unit.
+      - Write via repo.upsertMany; batch size controls for time limits.
+      - For changed tokens, write to history.
+  - Trigger via platform cron to call this endpoint every 6h.
+
+  Security & Observability
+
+  - Secure the scheduler endpoint with SCHEDULER_TOKEN to prevent public abuse.
+  - Add basic metrics:
+      - tokens processed, added, updated, errors
+      - time spent
+  - Log TapTools API quota and cache hits. Consider Upstash Redis later for shared cache if needed.
+
+  Testing Checklist
+
+  - Unit
+      - TokenRepository drivers: migrations, upserts, lookups, search, history.
+      - TapToolsAPI integration: endpoint parameterization with unit.
+  - Integration
+      - ticker-to-unit → TapToolsAPI end-to-end scenario.
+      - Scheduler: single-run idempotence, page dedupe, trend flags written.
+  - Load
+      - Upsert 10k tokens within timeouts; index scan performance.
+  - Fallbacks
+      - Hardcoded tokens present; TapTools network failure returns minimal set and doesn’t crash.
+
+  Files to Copy/Use as References
+
+  - Copy and adapt:
+      - mister-v2-cloud/src/mastra/services/taptools-api.ts → src/services/taptools-api.ts (keep the unit-first contract,
+  caching, retries)
+      - mister-v2-cloud/src/schedulers/token-discovery-scheduler.ts → src/scheduler/token-discovery.ts (refactor to
+  TokenRepository, remove better-sqlite3)
+      - mister-v2-cloud/src/mastra/tools/cardano/ticker-to-unit.ts → src/tools/ticker-to-unit.ts (strip file-path probing;
+  depend solely on TokenRepository)
+  - Use as reference only:
+      - mister-v2-cloud/src/mastra/tools/cardano/token-database-manager-sqlite.ts (schema, upsert patterns, search logic)
+      - mister-v2-cloud/database-analysis.md (context for schema and unification notes)
+      - agentproject/src/mastra/tools/cardanoTokenHolders*.ts, cardanoTokenOHLCV.ts, cardanoTokenLinks.ts (show TapTools usage
+  by unit)
+
+  Adaptation Notes
+
+  - Replace all better-sqlite3 usage with:
+      - @libsql/client when DB_PROVIDER=libsql or
+      - pg when DB_PROVIDER=postgres.
+  - Ensure unit is the primary key; add UNIQUE ticker.
+  - Thread-safe in serverless:
+      - No global db handles; create short-lived clients per-request.
+      - Run migrations at deploy, not during hot-path requests.
+  - Avoid storing current prices as “truth”:
+      - Keep DB price fields for heuristics/trend flags only.
+      - All real-time responses must fetch fresh data via TapToolsAPI.
+
+  Rollout Plan
+
+  - Phase 1: Create repo skeleton, add repository driver (libsql), migrations, TapTools service, ticker-to-unit tool.
+  - Phase 2: Implement scheduler endpoint and hook to platform cron; test against staging libsql DB.
+  - Phase 3: Integrate with SQL Agent (read-only queries). Whitelist SELECT-only operations for safety.
+  - Phase 4: Switch existing agents/tools to resolve ticker→unit via the new repo’s API, then call TapTools with unit.
+  - Phase 5: Decommission legacy JSON managers and any duplicated DB paths.
+
+  Assumptions & Risks
+
+  - TapTools endpoints remain stable; add error handling and backoff.
+  - ticker collisions: enforce uppercase normalization; consider ticker_aliases table in future.
+  - Serverless timeouts: split large upserts into batches (e.g., 500 rows each) with checkpointing.

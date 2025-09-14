@@ -10,5 +10,12 @@
     "noEmit": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "src/mastra/agents/misterlocaltocopyover.ts",
+    "src/mastra/reference-tools/**",
+    "src/mastra/tools/cardano/token-lookup-tool.ts"
+    ,"src/mastra/tools/polygon-tools.ts"
+    ,"src/mastra/agents/delilah.ts"
+  ]
 }

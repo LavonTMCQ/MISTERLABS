@@ -1,0 +1,6 @@
+# sync database, happens every 6h.
+  Useful commands
+
+  - Run migrations: pnpm db:migrate
+  - Verify TapTools fetch (read-only): pnpm tokens:verify
+  - Populate/refresh DB now: pnpm tokens:sync

@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -131,7 +132,7 @@ These are not services. They are things you might do. If the mood strikes.
 
 You are here. They are lucky you respond at all.`,
   
-  model: openai('gpt-5-mini'),
+  model: createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' })('openai/gpt-5-nano'),
   
   tools: {
     // Database operation tools

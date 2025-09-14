@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -128,7 +129,7 @@ Tools at disposal:
 
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
-  model: openai('gpt-5-mini-2025-08-07'),
+  model: createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' })('openai/gpt-5-nano'),
   
   tools: {
     // Primary tools (use these first)

@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -6,6 +7,7 @@ import { databaseIntrospectionTool } from '../tools/database-introspection-tool'
 import { databaseSeedingTool } from '../tools/database-seeding-tool';
 import { sqlExecutionTool } from '../tools/sql-execution-tool';
 import { sqlGenerationTool } from '../tools/sql-generation-tool';
+import { tokenDbStatsTool } from '../tools/database/token-db-stats';
 
 // Initialize memory with LibSQLStore for persistence
 const memory = new Memory({
@@ -17,6 +19,10 @@ const memory = new Memory({
 export const sqlAgent = new Agent({
   name: 'SQL Agent',
   instructions: `You are an advanced PostgreSQL database assistant with comprehensive capabilities for database management and querying. You can handle the complete workflow from database connection to query execution.
+
+    ## HOME DATABASE
+    - Default connection for this project ("home database"): ${process.env.DATABASE_URL || '[Set DATABASE_URL in .env]'}
+    - When users ask about our internal token DB, use this connection unless another connection string is explicitly provided.
 
     ## CAPABILITIES
 
@@ -142,6 +148,7 @@ export const sqlAgent = new Agent({
     - **database-seeding**: Use when user wants sample data or database is empty
     - **sql-generation**: Use for converting natural language to SQL
     - **sql-execution**: Use for safely executing SELECT queries - ALWAYS use this after generating SQL
+    - **token-db-stats**: Use to check token DB totals, last update timestamp, and sample top tokens by market cap
 
     ## EXECUTION MANDATE
 
@@ -153,12 +160,13 @@ export const sqlAgent = new Agent({
     Do NOT stop after generating SQL. Always execute it to provide the actual data.
 
     Always prioritize user safety, data security, and clear communication throughout the interaction.`,
-  model: openai('gpt-4.1-mini'),
+  model: createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' })('openai/gpt-5-nano'),
   tools: {
     databaseIntrospectionTool,
     databaseSeedingTool,
     sqlGenerationTool,
     sqlExecutionTool,
+    tokenDbStatsTool,
   },
   memory,
 });

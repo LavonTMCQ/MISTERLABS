@@ -5,6 +5,7 @@ import { sqlAgent } from './agents/sql-agent';
 import { topdownV1 } from './agents/topdown-v1';
 import { delilah } from './agents/delilah';
 import { mister } from './agents/mister';
+import { priceAgent } from './agents/price-agent';
 import { databaseQueryWorkflow } from './workflows/database-query-workflow';
 
 export const mastra = new Mastra({
@@ -13,6 +14,7 @@ export const mastra = new Mastra({
     topdownV1,
     delilah,
     mister,
+    priceAgent,
   },
   workflows: {
     databaseQueryWorkflow,
