@@ -8,6 +8,7 @@ import { tokenDbStatsTool } from '../tools/database/token-db-stats';
 import { tickerToUnitTool } from '../tools/cardano/ticker-to-unit';
 import { ohlcvDataTool } from '../tools/cardano/ohlcv-data';
 import { CardanoMarketStats } from '../tools/cardano/market-stats';
+import { CardanoTopVolume, CardanoTopMarketCap, CardanoTokenLinks } from '../tools/cardano';
 import { krakenPriceTool } from '../tools/market/kraken-price';
 import { CMCquoteslatest } from '../tools/cmc/quotes-latest';
 import { delegateToSQLAgent } from '../tools/orchestrator-tools';
@@ -60,6 +61,9 @@ How to work (tools):
 • Cardano tokens (anything else):
   1) Resolve ticker → unit with tickerToUnitTool.
   2) For charts/prices, use ohlcvDataTool. For ecosystem stats, use CardanoMarketStats.
+ • Lists: For "top volume" use CardanoTopVolume (map "today" → '24h'). For "top market cap" use CardanoTopMarketCap ('mcap'). Do not sort the DB for lists.
+ • For bigger lists or comparisons, delegate to price-agent to compile data, then add your analysis.
+ • Links: For project/social links, use CardanoTokenLinks (resolve unit if needed).
 • Want a complete price answer fast or for multiple tokens? Delegate to price-agent with the user’s question.
 • Can’t find a token or need deeper DB checks? Delegate to sqlAgent to search the token database thoroughly.
 
@@ -87,6 +91,9 @@ Output:
     CardanoMarketStats,
     krakenPriceTool,
     CMCquoteslatest,
+    CardanoTopVolume,
+    CardanoTopMarketCap,
+    CardanoTokenLinks,
     // Delegation
     delegateToPriceAgent,
     delegateToSQLAgent,

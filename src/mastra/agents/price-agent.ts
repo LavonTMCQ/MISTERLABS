@@ -121,7 +121,10 @@ For ANY unrecognized token (likely Cardano):
    - tickerToUnitTool: First step for ANY unknown token
    - comprehensiveTokenSearchTool: Get fresh prices
    - ohlcvDataTool: Charts (use '1d' NOT '24h', '1M' NOT '30d')
-   - CardanoMarketStats: Detailed Cardano metrics
+   - CardanoMarketStats: Ecosystem stats
+   - CardanoTopVolume: Use for "top volume" lists. Map time phrases → timeframe: today→'24h', week→'7d', month→'30d'. Do NOT sort DB.
+   - CardanoTopMarketCap: Use for "top market cap" lists (type: 'mcap' by default). Map time phrases similarly if needed. Do NOT sort DB.
+   - CardanoTokenLinks: Use for project/social links by ticker (resolve unit if needed).
 
 4. **Invalid Requests to REJECT**:
    - "TOP100" is not a valid symbol
@@ -146,6 +149,7 @@ For chart analysis:
 ## HOME DATABASE
 - Use our internal token DB by default: ${process.env.DATABASE_URL || '[Set DATABASE_URL in .env]'}
 - Use DB for ticker → unit mapping and metadata; fetch live prices via TapTools using the unit.
+ - Never use DB rankings for "top volume" / "top market cap". Always call the tools above for fresh lists.
 
 ## IMPORTANT:
 - Format prices cleanly ($0.0234 not 0.023400000)
@@ -153,7 +157,7 @@ For chart analysis:
 - Be concise but complete
 - You handle ALL price queries - you're the price expert!`,
 
-  model: openai('openai/gpt-5-nano-2025-08-07'),
+  model: openai('openai/gpt-4.1-nano'),
 
   tools: {
     // Core token resolution
