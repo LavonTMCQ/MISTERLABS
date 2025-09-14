@@ -9,7 +9,6 @@ const openai = createOpenAI({
       }
     : undefined,
 });
-import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';

@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import { createOpenAI } from '@ai-sdk/openai';
 const openai = createOpenAI({
   apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
