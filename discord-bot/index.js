@@ -74,7 +74,11 @@ client.on(Events.MessageCreate, async (message) => {
       `${MASTRA_BASE_URL}/api/agents/${AGENT_ID}/generate`,
       {
         messages: [{ role: 'user', content }],
-        maxSteps: 5
+        maxSteps: 10,
+        memory: {
+          resource: `discord-${message.author.id}`,
+          thread: `channel-${message.channelId}`,
+        }
       },
       {
         headers: { 'Content-Type': 'application/json' },

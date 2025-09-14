@@ -40,7 +40,7 @@ export const delegateToSQLAgent = createTool({
       const response = await sqlAgent.generate(
         [{ role: 'user', content: context.query }],
         { 
-          maxSteps: context.context?.maxSteps || 5,
+          maxSteps: context.context?.maxSteps || 10,
         }
       );
 

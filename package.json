@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "PORT=4113 mastra dev",
+    "dev": "mastra dev",
+    "dev:4111": "PORT=4111 mastra dev",
+    "dev:clean": "bash scripts/kill-mastra.sh && PORT=4111 mastra dev",
     "dev:4113": "PORT=4113 mastra dev",
     "build": "mastra build",
     "start": "mastra start",

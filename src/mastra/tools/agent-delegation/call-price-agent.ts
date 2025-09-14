@@ -7,7 +7,7 @@ export const delegateToPriceAgent = createTool({
   description: 'Delegate price or market data questions to the Enhanced Price & Market Data Agent',
   inputSchema: z.object({
     prompt: z.string().describe('User question about price, OHLCV, indicators, or market data'),
-    maxSteps: z.number().optional().default(5).describe('Maximum steps the agent should take'),
+    maxSteps: z.number().optional().default(10).describe('Maximum steps the agent should take'),
   }),
   outputSchema: z.object({
     status: z.enum(['SUCCESS', 'FAILURE', 'DELEGATED']),
@@ -31,7 +31,7 @@ export const delegateToPriceAgent = createTool({
 
       const response = await agent.generate([
         { role: 'user', content: context.prompt },
-      ], { maxSteps: context.maxSteps });
+      ], { maxSteps: context.maxSteps ?? 10 });
 
       return {
         status: 'SUCCESS' as const,
@@ -49,4 +49,3 @@ export const delegateToPriceAgent = createTool({
     }
   },
 });
-

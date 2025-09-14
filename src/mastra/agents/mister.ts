@@ -32,9 +32,12 @@ const memory = new Memory({
   vector: new LibSQLVector({ connectionUrl: 'file:../mister-vector.db' }),
   embedder: openai.embedding('text-embedding-3-small'),
   options: {
-    lastMessages: 10,
+    lastMessages: 5,
     semanticRecall: { topK: 3, messageRange: 3 },
-    workingMemory: { enabled: false },
+    workingMemory: {
+      enabled: true,
+      template: `# User Profile\n- Preferred fiat: \n- Timezone: \n- Risk tolerance: \n- Favorite tickers: \n- Preferred interval: \n- Notes: `,
+    },
     threads: { generateTitle: false },
   },
 });

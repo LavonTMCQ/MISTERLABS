@@ -48,6 +48,8 @@ import { CardanoTopVolume, CardanoTopMarketCap } from '../tools/cardano';
 // Additional market data tools
 import { tokenTradesTool, tokenHoldersTool, CardanoTotalHolders } from '../tools/cardano';
 import { marketDataTool } from '../tools/market/market-data';
+import { Memory } from '@mastra/memory';
+import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 
 /**
  * ENHANCED PRICE & MARKET DATA AGENT
@@ -62,6 +64,21 @@ import { marketDataTool } from '../tools/market/market-data';
  * - Global market metrics and sentiment
  * - Technical indicators and chart patterns
  */
+const priceMemory = new Memory({
+  storage: new LibSQLStore({ url: 'file:../price-agent.db' }),
+  vector: new LibSQLVector({ connectionUrl: 'file:../price-agent-vector.db' }),
+  embedder: openai.embedding('text-embedding-3-small'),
+  options: {
+    lastMessages: 5,
+    semanticRecall: { topK: 3, messageRange: 3 },
+    workingMemory: {
+      enabled: true,
+      template: `# Market Preferences\n- Quote currency: \n- Timeframe focus: \n- Cardano tokens of interest: \n- Exchanges preferred (Kraken/CMC/TapTools): \n- Alerts / thresholds: \n- Notes: `,
+    },
+    threads: { generateTitle: false },
+  },
+});
+
 export const priceAgent = new Agent({
   id: 'price-agent',
   name: 'Enhanced Price & Market Data Agent',
@@ -196,8 +213,8 @@ For chart analysis:
     marketDataTool,
   },
 
-  // No memory needed - stateless for speed
-  memory: undefined,
+  // Enable short conversational context and working memory
+  memory: priceMemory,
 });
 
 export default priceAgent;
