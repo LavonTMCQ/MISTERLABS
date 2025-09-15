@@ -1,14 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
-const openai = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
-  headers: process.env.OPENROUTER_API_KEY
-    ? {
-        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
-        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
-      }
-    : undefined,
-});
+import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -24,6 +14,8 @@ import {
 } from '../tools/polygon-tools';
 
 // Initialize memory for Delilah - separate from TOPDOWN
+const embeddingModelDL = 'text-embedding-3-small';
+
 const memory = new Memory({
   storage: new LibSQLStore({
     url: 'file:../delilah.db', // Dedicated database for Delilah
@@ -31,7 +23,7 @@ const memory = new Memory({
   vector: new LibSQLVector({
     connectionUrl: 'file:../delilah-vector.db', // Separate vector database
   }),
-  embedder: openai.embedding('text-embedding-3-small'),
+  embedder: openai.embedding(embeddingModelDL),
   options: {
     lastMessages: 30, // More context for trading discussions
     semanticRecall: { 
@@ -138,7 +130,7 @@ Tools at disposal:
 
 You're here to observe and comment. They're adults with brokerage accounts.`,
   
-  model: openai('openai/gpt-5-nano-2025-08-07'),
+  model: openai('gpt-4o-mini'),
   
   tools: {
     // Primary tools (use these first)

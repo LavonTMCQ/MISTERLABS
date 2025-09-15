@@ -1,0 +1,107 @@
+Short answer
+
+  - Turso (LibSQL) has a free tier suitable for this use case.
+  - Yes, I prepared the agents to use a shared LibSQL/Turso database when you set two env vars in cloud: MEMORY_DATABASE_URL
+  and MEMORY_DATABASE_AUTH_TOKEN.
+  - If you prefer not to use Turso, free options include Neon or Supabase with pgvector (we can switch to @mastra/pg vector
+  store).
+
+  How to set up Turso (LibSQL) quickly on macOS
+
+  - Install CLI:
+    brew install turso
+  - Login:
+    turso auth login
+  - Create DB:
+    turso db create mister-memory
+  - Get URL:
+    turso db show mister-memory
+    Copy the libsql:// URL shown.
+  - Create auth token:
+    turso db tokens create mister-memory
+    Copy the token.
+  - Set in your cloud environment (Mastra Cloud):
+      - MEMORY_DATABASE_URL = [your libsql:// URL]
+      - MEMORY_DATABASE_AUTH_TOKEN = [your token]
+  - Deploy (agents are already wired):
+      - Mister and Price Agent will now share this LibSQL/Turso DB for:
+          - Conversation history (lastMessages)
+          - Working Memory (Markdown profile outside context window)
+          - Semantic Recall (RAG; embeddings + vector search)
+
+  Is Turso free?
+
+  - Yes, Turso has a free tier that’s fine for prototyping and small production tests. It’s generous enough to start and you
+  can upgrade later. You’ll get a libsql:// URL and token via the CLI as shown.
+
+  What if I don’t want to use Turso?
+
+  - Free alternatives:
+      - Neon (Postgres) + pgvector (free tier available).
+      - Supabase (Postgres) + pgvector (free tier available).
+  - If you choose pgvector, I can swap the vector backend to @mastra/pg and set the embedder accordingly. Your current code is
+  already structured to make that switch easy.
+
+  What I’ve already wired in the code
+
+  - Mister and Price Agent are set to:
+      - Use MEMORY_DATABASE_URL/MEMORY_DATABASE_AUTH_TOKEN in cloud (shared DB for both).
+      - Fall back to local file: DBs during development.
+      - If no vector backend is available in production, semantic recall disables itself automatically to avoid errors;
+  Working Memory and conversation history still work.
+
+  Defaults we use
+
+  - Working Memory: enabled with a clean Markdown template for each agent (stays out of the token window).
+  - Conversation history: lastMessages = 5 (good for smaller models).
+  - Semantic recall: topK = 3, messageRange = 3 (concise context retrieval).
+  - Timeframe phrase mapping: “today/week/month” → '24h'/'7d'/'30d'.
+  - Stable filtering: On by default in top lists; includes DJED, iUSD, USDM, RSERG, etc.
+
+  Next step
+
+  - If you want Turso, run the CLI steps above and set the two env vars in your cloud. Ping me when that’s done and I’ll
+  verify memory creation/usage in the traces and ensure semantic recall is running. If you prefer Neon/Supabase (pgvector),
+  say the word and I’ll convert the vector backend to @mastra/pg.
+
+
+------
+
+
+  okay last question, if he is using the workinng emory in the cloud does that ean everything is already set up?
+
+> Short answer: almost. Two things must be true for “working memory in the cloud” to be truly set up and persistent:
+
+  - A real database for memory
+      - You must set a persistent LibSQL/Turso URL in cloud:
+          - MEMORY_DATABASE_URL
+          - MEMORY_DATABASE_AUTH_TOKEN (if using Turso)
+      - Without these, the agents fall back to file: paths which are ephemeral in cloud, so working memory won’t persist
+  across restarts.
+      - You do not need the Postgres token DB for memory; keep tokens in Postgres and memory in LibSQL/Turso.
+  - Calls must pass memory resource + thread
+      - The Playground handles thread/resource automatically.
+      - Your Discord bot now sends:
+          - memory.resource = discord-<userId>
+          - memory.thread = channel-<channelId>
+      - That means working memory fields will persist per user/channel, provided the DB above is set.
+
+  Semantic recall (RAG) note
+
+  - We turned on semantic recall only when a vector store is available:
+      - If MEMORY_DATABASE_URL is set in cloud, semantic recall is on (vector+embedder).
+      - If not, semantic recall is disabled automatically to avoid errors. Working memory and conversation history still work.
+
+  How to finalize
+
+  - In your cloud env, set:
+      - MEMORY_DATABASE_URL = libsql://… (Turso LibSQL URL)
+      - MEMORY_DATABASE_AUTH_TOKEN = … (if required)
+  - That’s it. Mister and Price Agent already share this DB and will persist working memory + conversation history across
+  sessions. Semantic recall will activate automatically.
+
+  Verification
+
+  - Try in cloud: tell Mister “My quote currency is USD” then ask later “What’s my quote currency?” If memory persists between
+  runs, it’s working.
+  - You can also check traces to see working memory updates and recalled context.

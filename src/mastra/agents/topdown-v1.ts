@@ -1,14 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
-const openai = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
-  headers: process.env.OPENROUTER_API_KEY
-    ? {
-        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
-        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
-      }
-    : undefined,
-});
+import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -19,6 +9,8 @@ import { sqlGenerationTool } from '../tools/sql-generation-tool';
 import { delegateToSQLAgent, systemStatus, announceCapability } from '../tools/orchestrator-tools';
 
 // Initialize memory with enhanced configuration for orchestrator
+const embeddingModelTD = 'text-embedding-3-small';
+
 const memory = new Memory({
   storage: new LibSQLStore({
     url: 'file:../topdown.db', // Dedicated database for topdown
@@ -26,7 +18,7 @@ const memory = new Memory({
   vector: new LibSQLVector({
     connectionUrl: 'file:../topdown-vector.db', // Separate vector database
   }),
-  embedder: openai.embedding('text-embedding-3-small'), // OpenAI embedder for vectors
+  embedder: openai.embedding(embeddingModelTD), // OpenAI embedder for vectors
   options: {
     lastMessages: 20, // Increased context window
     semanticRecall: { 
@@ -141,7 +133,7 @@ These are not services. They are things you might do. If the mood strikes.
 
 You are here. They are lucky you respond at all.`,
   
-  model: openai('openai/gpt-5-nano-2025-08-07'),
+  model: openai('gpt-4o-mini'),
   
   tools: {
     // Database operation tools

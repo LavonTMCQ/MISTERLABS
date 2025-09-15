@@ -1,4 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -14,32 +14,32 @@ import { CMCquoteslatest } from '../tools/cmc/quotes-latest';
 import { delegateToSQLAgent } from '../tools/orchestrator-tools';
 import { delegateToPriceAgent } from '../tools/agent-delegation/call-price-agent';
 
-// OpenAI V1 provider with OpenRouter base (if key present)
-const openai = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
-  headers: process.env.OPENROUTER_API_KEY
-    ? {
-        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
-        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
-      }
-    : undefined,
-});
+// OpenAI provider (Mastra standard)
+const embeddingModel = 'text-embedding-3-small';
 
 // Lightweight memory for MISTER (no exposed templates)
+const isProd = process.env.NODE_ENV === 'production';
+const useCloudLibSQL = !!process.env.MEMORY_DATABASE_URL;
+const misterStorage = new LibSQLStore({
+  url: process.env.MEMORY_DATABASE_URL || 'file:../mister.db',
+  authToken: process.env.MEMORY_DATABASE_AUTH_TOKEN,
+});
+const misterVector = useCloudLibSQL
+  ? new LibSQLVector({
+      connectionUrl: process.env.MEMORY_DATABASE_URL!,
+      authToken: process.env.MEMORY_DATABASE_AUTH_TOKEN,
+    })
+  : (!isProd
+      ? new LibSQLVector({ connectionUrl: 'file:../mister-vector.db' })
+      : undefined);
+
 const memory = new Memory({
-  storage: new LibSQLStore({
-    url: process.env.DATABASE_URL || 'file:../mister.db',
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  }),
-  vector: new LibSQLVector({
-    connectionUrl: process.env.DATABASE_URL || 'file:../mister-vector.db',
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  }),
-  embedder: openai.embedding('text-embedding-3-small'),
+  storage: misterStorage,
+  ...(misterVector ? { vector: misterVector } : {}),
+  embedder: openai.embedding(embeddingModel),
   options: {
     lastMessages: 5,
-    semanticRecall: { topK: 3, messageRange: 3 },
+    semanticRecall: misterVector ? { topK: 3, messageRange: 3 } : false,
     workingMemory: {
       enabled: true,
       template: `# User Profile\n- Preferred fiat: \n- Timezone: \n- Risk tolerance: \n- Favorite tickers: \n- Preferred interval: \n- Notes: `,
@@ -87,7 +87,7 @@ Output:
 • If a tool fails, say what happened and suggest the next step.
 `,
   
-  model: openai('openai/gpt-5-nano-2025-08-07'),
+  model: openai('gpt-4.1-mini'),
   
   tools: {
     // DB + token tools

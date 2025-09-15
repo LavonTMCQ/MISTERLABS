@@ -38,6 +38,6 @@
   - For agent/tool changes: before/after example messages or SQL, and safety notes (SELECT‑only enforcement).
 
 ## Security & Configuration
-- Root `.env`: `OPENAI_API_KEY` (required), `DATABASE_URL` (for Postgres), optional `OPENROUTER_API_KEY` (for MISTER).
+- Root `.env`: `OPENAI_API_KEY` (required), `DATABASE_URL` (for Postgres).
 - Discord bot `.env`: `DISCORD_BOT_TOKEN`, `MASTRA_BASE_URL`, `AGENT_ID`.
 - Do not commit secrets. Keep SQL execution SELECT‑only (enforced in `sql-execution-tool`).

@@ -1,14 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
-const openai = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
-  headers: process.env.OPENROUTER_API_KEY
-    ? {
-        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
-        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
-      }
-    : undefined,
-});
+import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
@@ -169,7 +159,7 @@ export const sqlAgent = new Agent({
     Do NOT stop after generating SQL. Always execute it to provide the actual data.
 
     Always prioritize user safety, data security, and clear communication throughout the interaction.`,
-  model: openai('openai/gpt-5-nano-2025-08-07'),
+  model: openai('gpt-4o-mini'),
   tools: {
     databaseIntrospectionTool,
     databaseSeedingTool,

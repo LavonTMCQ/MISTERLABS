@@ -1,15 +1,5 @@
 import { Agent } from '@mastra/core/agent';
-import { createOpenAI } from '@ai-sdk/openai';
-const openai = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined,
-  headers: process.env.OPENROUTER_API_KEY
-    ? {
-        'HTTP-Referer': process.env.OPENROUTER_HTTP_REF || 'https://github.com/LavonTMCQ/MISTERLABS',
-        'X-Title': process.env.OPENROUTER_APP_TITLE || 'MISTERLABS',
-      }
-    : undefined,
-});
+import { openai } from '@ai-sdk/openai';
 
 // Token lookup and discovery tools
 import { tickerToUnitTool } from '../tools/cardano/ticker-to-unit';
@@ -55,7 +45,7 @@ import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
  * ENHANCED PRICE & MARKET DATA AGENT
  * 
  * Handles 40% of MISTER's workload with 90% cost reduction
- * Model: openai/gpt-5-nano (benchmark across agents)
+ * Model: gpt-4o-mini (OpenAI)
  * 
  * Complete coverage:
  * - ALL cryptocurrency prices (BTC, ETH, SOL, ADA, all Cardano tokens)
@@ -64,19 +54,30 @@ import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
  * - Global market metrics and sentiment
  * - Technical indicators and chart patterns
  */
+const isProdPA = process.env.NODE_ENV === 'production';
+const hasCloudLibSQLPA = !!process.env.MEMORY_DATABASE_URL;
+const paStorage = new LibSQLStore({
+  url: process.env.MEMORY_DATABASE_URL || 'file:../price-agent.db',
+  authToken: process.env.MEMORY_DATABASE_AUTH_TOKEN,
+});
+const paVector = hasCloudLibSQLPA
+  ? new LibSQLVector({
+      connectionUrl: process.env.MEMORY_DATABASE_URL!,
+      authToken: process.env.MEMORY_DATABASE_AUTH_TOKEN,
+    })
+  : (!isProdPA
+      ? new LibSQLVector({ connectionUrl: 'file:../price-agent-vector.db' })
+      : undefined);
+
+const embeddingModelPA = 'text-embedding-3-small';
+
 const priceMemory = new Memory({
-  storage: new LibSQLStore({
-    url: process.env.DATABASE_URL || 'file:../price-agent.db',
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  }),
-  vector: new LibSQLVector({
-    connectionUrl: process.env.DATABASE_URL || 'file:../price-agent-vector.db',
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  }),
-  embedder: openai.embedding('text-embedding-3-small'),
+  storage: paStorage,
+  ...(paVector ? { vector: paVector } : {}),
+  embedder: openai.embedding(embeddingModelPA),
   options: {
     lastMessages: 5,
-    semanticRecall: { topK: 3, messageRange: 3 },
+    semanticRecall: paVector ? { topK: 3, messageRange: 3 } : false,
     workingMemory: {
       enabled: true,
       template: `# Market Preferences\n- Quote currency: \n- Timeframe focus: \n- Cardano tokens of interest: \n- Exchanges preferred (Kraken/CMC/TapTools): \n- Alerts / thresholds: \n- Notes: `,
@@ -180,7 +181,7 @@ For chart analysis:
 - Be concise but complete
 - You handle ALL price queries - you're the price expert!`,
 
-  model: openai('openai/gpt-4.1-nano'),
+  model: openai('gpt-4o-mini'),
 
   tools: {
     // Core token resolution

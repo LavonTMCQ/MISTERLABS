@@ -74,7 +74,7 @@ client.on(Events.MessageCreate, async (message) => {
       `${MASTRA_BASE_URL}/api/agents/${AGENT_ID}/generate`,
       {
         messages: [{ role: 'user', content }],
-        maxSteps: 10,
+        maxSteps: Number(process.env.MASTRA_MAX_STEPS || 16),
         memory: {
           resource: `discord-${message.author.id}`,
           thread: `channel-${message.channelId}`,

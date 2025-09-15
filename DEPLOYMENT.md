@@ -102,6 +102,15 @@ Required:
 Optional (for database operations):
 - `DATABASE_URL`: PostgreSQL connection string
 
+Memory (LibSQL/Turso) for persistent agent memory + vector recall:
+- `MEMORY_DATABASE_URL`: Turso/LibSQL URL (starts with `libsql://...`)
+- `MEMORY_DATABASE_AUTH_TOKEN`: DB token minted for the database
+
+To provision Turso and print the values locally:
+- Ensure you’re logged in: `turso auth login` (or `--headless`)
+- Run: `scripts/setup-turso.sh mister-memory`
+- Copy the two printed env vars into your cloud environment
+
 ## Testing the Deployment
 
 Test your deployment with curl:

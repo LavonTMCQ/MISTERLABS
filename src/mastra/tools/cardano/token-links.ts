@@ -344,8 +344,8 @@ export const CardanoTokenLinks = createTool({
         message: error instanceof Error ? error.message : 'Unknown error'
       });
       return {
-        error: true,
-        message: error instanceof Error ? error.message : 'Unknown error in token links lookup',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error in token links lookup',
         suggestion: 'Please verify your input ticker and try again.'
       };
     }

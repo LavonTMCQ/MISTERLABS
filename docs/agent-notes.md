@@ -1,7 +1,7 @@
 # Agent Notes (Working Memory, Routing, and RAG)
 
 ## What We Changed
-- Switched all agents to model `openai/gpt-5-nano-2025-08-07` via OpenAI SDK with OpenRouter base (V1 streaming compatible).
+- Switched all agents to OpenAI-only using `openai('gpt-4o-mini')` and embeddings `text-embedding-3-small`.
 - Fixed Cardano routing rules:
   - Use `CardanoTopVolume` for “top volume” (map today→'24h', week→'7d', month→'30d'). Do not sort the DB for lists.
   - Use `CardanoTopMarketCap` for “top market cap” (type 'mcap'). Do not sort the DB.
@@ -53,7 +53,7 @@
 - Vector/RAG works in cloud with persistent DB:
   - Use LibSQL/Turso via `process.env.DATABASE_URL` (and `DATABASE_AUTH_TOKEN` if needed) for both storage and vector.
 - Ensure env keys:
-  - `OPENROUTER_API_KEY` (or `OPENAI_API_KEY`), `TAPTOOLS_API_KEY`, `CMC_API_KEY`, `DATABASE_URL`.
+  - `OPENAI_API_KEY`, `TAPTOOLS_API_KEY`, `CMC_API_KEY`, `DATABASE_URL`.
 
 ## Next Session TODOs
 - Add stablecoin filtering defaults for top lists.

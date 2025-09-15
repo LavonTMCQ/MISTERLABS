@@ -1,0 +1,120 @@
+Starting mastra dev on 4111...
+
+> template-text-to-sql@1.0.0 dev:clean
+> bash scripts/kill-mastra.sh && PORT=4111 mastra dev
+
+Scanning for Mastra servers and ports (4111-4114)...
+Killing processes on port 4111...
+Killing any 'mastra dev/start' processes...
+Verifying ports:
+Port 4111 still in use:
+COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    25443 coldgame   38u  IPv6 0x1bcaa8cc0419df7d      0t0  TCP *:4111 (LISTEN)
+Port 4112 is free.
+Port 4113 is free.
+Port 4114 is free.
+Done.
+[32mINFO[39m [2025-09-14 20:14:21.050 -0400] (Mastra CLI): [36mStarting watcher...[39m
+[32mINFO[39m [2025-09-14 20:14:23.232 -0400] (Mastra CLI): [36mBundling finished, starting server...[39m
+[32mINFO[39m [2025-09-14 20:14:23.254 -0400] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+(node:72596) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+TapTools API initialized with key: jRYEk7Jd...
+[INFO] Initialized TokenStore with hardcoded tokens 
+node:events:485
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EPERM: operation not permitted 0.0.0.0:4111
+    at Server.setupListenHandle [as _listen2] (node:net:1915:21)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at serve (file:///Users/coldgame/MISTERLABS/.mastra/output/index.mjs:25177:10)
+    at createNodeServer (file:///Users/coldgame/MISTERLABS/.mastra/output/index.mjs:34839:18)
+    at async file:///Users/coldgame/MISTERLABS/.mastra/output/index.mjs:34869:1
+Emitted 'error' event on Server instance at:
+    at Server.incomingRequest (/Users/coldgame/MISTERLABS/node_modules/.pnpm/@opentelemetry+instrumentation-http@0.203.0_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/instrumentation-http/build/src/http.js:333:33)
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 4111
+}
+
+Node.js v23.6.0
+Error while flushing PostHog PostHogFetchNetworkError: Network error while fetching PostHog
+    at retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2835:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+    at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+    at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+  error: TypeError: fetch failed
+      at node:internal/deps/undici/undici:13484:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2828:23)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+      at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+      at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+    [cause]: Error: getaddrinfo ENOTFOUND us.posthog.com
+        at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:120:26) {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'us.posthog.com'
+    }
+  },
+  [cause]: TypeError: fetch failed
+      at node:internal/deps/undici/undici:13484:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2828:23)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+      at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+      at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+    [cause]: Error: getaddrinfo ENOTFOUND us.posthog.com
+        at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:120:26) {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'us.posthog.com'
+    }
+  }
+}
+Error while flushing PostHog PostHogFetchNetworkError: Network error while fetching PostHog
+    at retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2835:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+    at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+    at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+  error: TypeError: fetch failed
+      at node:internal/deps/undici/undici:13484:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2828:23)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+      at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+      at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+    [cause]: Error: getaddrinfo ENOTFOUND us.posthog.com
+        at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:120:26) {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'us.posthog.com'
+    }
+  },
+  [cause]: TypeError: fetch failed
+      at node:internal/deps/undici/undici:13484:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2828:23)
+      at async retriable (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:1601:25)
+      at async PostHog.fetchWithRetry (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2825:16)
+      at async PostHog._flush (file:///Users/coldgame/MISTERLABS/node_modules/.pnpm/posthog-node@4.18.0/node_modules/posthog-node/lib/node/index.mjs:2786:17) {
+    [cause]: Error: getaddrinfo ENOTFOUND us.posthog.com
+        at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:120:26) {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'us.posthog.com'
+    }
+  }
+}

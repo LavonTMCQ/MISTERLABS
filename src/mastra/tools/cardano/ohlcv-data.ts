@@ -423,45 +423,49 @@ export const ohlcvDataTool = createTool({
           // Add TapTools indicators to the analysis
           if (indicators.rsi && indicators.rsi.length > 0) {
             const latestRSI = indicators.rsi[indicators.rsi.length - 1];
+            const maxHist = Math.min(numIntervals, 30);
             // RSI returns a single value (number) not an object
             tapToolsIndicators.rsi = {
               value: typeof latestRSI === 'number' ? latestRSI : (latestRSI.value || latestRSI.rsi),
               timestamp: new Date().toISOString(),
-              history: indicators.rsi
+              history: indicators.rsi.slice(-maxHist)
             };
           }
           
           if (indicators.macd && indicators.macd.length > 0) {
             const latestMACD = indicators.macd[indicators.macd.length - 1];
+            const maxHist = Math.min(numIntervals, 30);
             // MACD returns an object with macd, signal, histogram
             tapToolsIndicators.macd = {
               macd: latestMACD.macd,
               signal: latestMACD.signal,
               histogram: latestMACD.histogram,
               timestamp: latestMACD.time || latestMACD.timestamp || new Date().toISOString(),
-              history: indicators.macd
+              history: indicators.macd.slice(-maxHist)
             };
           }
           
           if (indicators.ema && indicators.ema.length > 0) {
             const latestEMA = indicators.ema[indicators.ema.length - 1];
+            const maxHist = Math.min(numIntervals, 30);
             // EMA returns a single value (number) not an object
             tapToolsIndicators.ema = {
               value: typeof latestEMA === 'number' ? latestEMA : (latestEMA.value || latestEMA.ema),
               timestamp: new Date().toISOString(),
-              history: indicators.ema
+              history: indicators.ema.slice(-maxHist)
             };
           }
           
           if (indicators.bb && indicators.bb.length > 0) {
             const latestBB = indicators.bb[indicators.bb.length - 1];
+            const maxHist = Math.min(numIntervals, 30);
             // BB returns an object with upper, middle, lower
             tapToolsIndicators.bollingerBands = {
               upper: latestBB.upper,
               middle: latestBB.middle,
               lower: latestBB.lower,
               timestamp: latestBB.time || latestBB.timestamp || new Date().toISOString(),
-              history: indicators.bb
+              history: indicators.bb.slice(-maxHist)
             };
           }
           
