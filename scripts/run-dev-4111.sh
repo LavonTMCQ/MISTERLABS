@@ -12,5 +12,6 @@ bash "$ROOT_DIR/scripts/kill-mastra.sh"
 
 echo "==> Starting Mastra dev on :4111 (logs -> $LOG_FILE)"
 export PORT=4111
+export MASTRA_TELEMETRY_DISABLED=1
 exec mastra dev 2>&1 | tee "$LOG_FILE"
 

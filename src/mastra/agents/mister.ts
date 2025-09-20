@@ -87,7 +87,8 @@ Output:
 • If a tool fails, say what happened and suggest the next step.
 `,
   
-  model: openai('gpt-4.1-mini'),
+  // Match the working production agents (TOPDOWN/Delilah) on gpt-4o-mini
+  model: openai('gpt-4o-mini'),
   
   tools: {
     // DB + token tools
