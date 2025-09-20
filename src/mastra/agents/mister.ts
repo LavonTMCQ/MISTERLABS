@@ -87,8 +87,7 @@ Output:
 • If a tool fails, say what happened and suggest the next step.
 `,
   
-  // gpt-4.1 models require the OpenAI Responses API
-  model: openai.responses('gpt-4.1-mini'),
+  model: openai('gpt-4o-mini'),
   
   tools: {
     // DB + token tools
