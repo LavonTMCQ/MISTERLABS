@@ -5,6 +5,7 @@ import { Memory } from '@mastra/memory';
 import { databaseIntrospectionTool } from '../tools/database-introspection-tool';
 import { sqlExecutionTool } from '../tools/sql-execution-tool';
 import { tokenDbStatsTool } from '../tools/database/token-db-stats';
+import { tokenDbHealthTool } from '../tools/database/token-db-health';
 import { tickerToUnitTool } from '../tools/cardano/ticker-to-unit';
 import { ohlcvDataTool } from '../tools/cardano/ohlcv-data';
 import { CardanoMarketStats } from '../tools/cardano/market-stats';
@@ -94,6 +95,7 @@ Output:
     databaseIntrospectionTool,
     sqlExecutionTool,
     tokenDbStatsTool,
+    tokenDbHealthTool,
     tickerToUnitTool,
     // Direct price/market capability
     ohlcvDataTool,

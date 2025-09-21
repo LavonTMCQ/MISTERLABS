@@ -42,6 +42,31 @@ function splitUnit(unit) {
   return { policy_id, asset_name };
 }
 
+function pickNumber(obj, keys = []) {
+  for (const k of keys) {
+    const v = obj?.[k];
+    const n = typeof v === 'string' ? Number(v) : v;
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function mapPrice(raw) {
+  return pickNumber(raw, ['price', 'lastPrice', 'close', 'latestPrice']);
+}
+
+function mapMarketCap(raw) {
+  return pickNumber(raw, ['mcap', 'marketCap']);
+}
+
+function mapVolume(raw) {
+  // Try common variants across endpoints/timeframes
+  return pickNumber(raw, [
+    'volume', 'volume_24h', 'volume24h', 'volume24H', 'vol24h', 'vol_24h', 'volume24Hours'
+  ]);
+}
+
+
 function normalizeToken(raw, source) {
   const unit = raw.unit || (raw.policyId ? (raw.policyId + (raw.assetName || '')) : null);
   const { policy_id, asset_name } = splitUnit(unit);
@@ -52,9 +77,9 @@ function normalizeToken(raw, source) {
     policy_id,
     asset_name,
     decimals: Number.isFinite(raw.decimals) ? raw.decimals : null,
-    price_usd: Number.isFinite(raw.price) ? raw.price : null,
-    volume_24h: Number.isFinite(raw.volume) ? raw.volume : null,
-    market_cap: Number.isFinite(raw.mcap) ? raw.mcap : null,
+    price_usd: mapPrice(raw),
+    volume_24h: mapVolume(raw),
+    market_cap: mapMarketCap(raw),
     supply: Number.isFinite(raw.totalSupply) ? raw.totalSupply : null,
     source,
   };

@@ -49,13 +49,13 @@ export class TapToolsAPI {
     if (!apiKey) {
       throw new Error('TAPTOOLS_API_KEY environment variable is required');
     }
-    
+
     this.config = {
       apiKey,
       baseUrl: 'https://openapi.taptools.io/api/v1',
       timeout: 30000  // Increased timeout to 30 seconds for holder queries
     };
-    
+
     console.log(`TapTools API initialized with key: ${apiKey.substring(0, 8)}...`);
   }
 
@@ -64,7 +64,7 @@ export class TapToolsAPI {
    */
   private async request(endpoint: string, params: Record<string, string> = {}): Promise<any> {
     const cacheKey = `${endpoint}:${JSON.stringify(params)}`;
-    
+
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
@@ -73,7 +73,7 @@ export class TapToolsAPI {
 
     const url = new URL(`${this.config.baseUrl}${endpoint}`);
     Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
-    
+
     // Log the full URL for debugging holder endpoint
     if (endpoint.includes('/token/holders')) {
       console.log(`[TapTools API] Full URL: ${url.toString()}`);
@@ -82,7 +82,7 @@ export class TapToolsAPI {
     // Retry logic for DNS and network failures
     const maxRetries = 3;
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // Add slight delay between retries
@@ -104,14 +104,14 @@ export class TapToolsAPI {
         }
 
         const data = await response.json();
-        
+
         // Cache the result
         this.cache.set(cacheKey, { data, timestamp: Date.now() });
-        
+
         return data;
       } catch (error: any) {
         lastError = error;
-        
+
         // Check if it's a DNS error
         if (error?.cause?.code === 'ENOTFOUND') {
           console.warn(`[Attempt ${attempt}/${maxRetries}] DNS resolution failed for TapTools API, retrying...`);
@@ -120,15 +120,15 @@ export class TapToolsAPI {
         } else {
           console.error(`[Attempt ${attempt}/${maxRetries}] TapTools API request failed for ${endpoint}:`, error.message);
         }
-        
+
         // Don't retry for non-network errors
-        if (!['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET'].includes(error?.cause?.code) && 
+        if (!['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET'].includes(error?.cause?.code) &&
             !error.message?.includes('fetch failed')) {
           break;
         }
       }
     }
-    
+
     console.error(`TapTools API request failed after ${maxRetries} attempts for ${endpoint}`);
     throw lastError;
   }
@@ -156,7 +156,7 @@ export class TapToolsAPI {
     try {
       // Use the integration/asset endpoint (more reliable for specific tokens)
       const data = await this.request('/integration/asset', { id: unit });
-      
+
       if (data?.asset) {
         const asset = data.asset;
         // Return in expected format
@@ -176,13 +176,88 @@ export class TapToolsAPI {
   }
 
   /**
+   * Try multiple OHLCV intervals and return the first non-empty result
+   */
+  private async getFirstAvailableOHLCV(
+    unit: string,
+    intervals: string[] = [ '1h', '15m'],
+    numIntervals: number = 2
+  ): Promise<{ candles: OHLCVData[]; intervalUsed: string } | null> {
+    for (const interval of intervals) {
+      try {
+        const candles = await this.getTokenOHLCV(unit, interval, numIntervals);
+        if (Array.isArray(candles) && candles.length > 0) {
+          return { candles, intervalUsed: interval };
+        }
+      } catch (e) {
+        // continue to next interval
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get token links/socials/metadata from TapTools Integration Asset endpoint
+   */
+  async getTokenLinks(unit: string): Promise<{
+    website?: string | null;
+    twitter?: string | null;
+    telegram?: string | null;
+    discord?: string | null;
+    github?: string | null;
+    whitepaper?: string | null;
+    explorer?: string | null;
+    extra?: Record<string, any>;
+  } | null> {
+    try {
+      const data = await this.request('/integration/asset', { id: unit });
+      const asset = data?.asset ?? data; // be defensive about shape
+      if (!asset) return null;
+
+      // Common fields observed across ecosystems
+      const links = asset.links || asset.socials || {};
+
+      const pick = (...keys: string[]) => {
+        for (const k of keys) {
+          const v = links?.[k] ?? asset?.[k];
+          if (typeof v === 'string' && v.trim()) return v.trim();
+        }
+        return null;
+      };
+
+      const website = pick('website', 'site', 'homepage', 'url');
+      const twitter = pick('twitter', 'x', 'twitterUrl');
+      const telegram = pick('telegram', 'tg');
+      const discord = pick('discord');
+      const github = pick('github', 'git');
+      const whitepaper = pick('whitepaper', 'docs', 'documentation');
+      const explorer = pick('explorer', 'cardanoscan', 'cnftExplorer', 'etherscan');
+
+      return {
+        website,
+        twitter,
+        telegram,
+        discord,
+        github,
+        whitepaper,
+        explorer,
+        extra: { asset, links }
+      };
+    } catch (error) {
+      console.error(`Failed to get token links for ${unit}:`, error);
+      return null;
+    }
+  }
+
+
+  /**
    * Get top token holders
    */
   async getTokenHolders(unit: string, limit: number = 20): Promise<HolderData[]> {
     try {
-      const data = await this.request('/token/holders/top', { 
-        unit, 
-        limit: limit.toString() 
+      const data = await this.request('/token/holders/top', {
+        unit,
+        limit: limit.toString()
       });
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -196,10 +271,10 @@ export class TapToolsAPI {
    */
   async getTokenOHLCV(unit: string, interval: string = '1d', numIntervals: number = 30): Promise<OHLCVData[]> {
     try {
-      const data = await this.request('/token/ohlcv', { 
-        unit, 
-        interval, 
-        numIntervals: numIntervals.toString() 
+      const data = await this.request('/token/ohlcv', {
+        unit,
+        interval,
+        numIntervals: numIntervals.toString()
       });
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -217,26 +292,29 @@ export class TapToolsAPI {
     marketCap?: number;
     priceChange24h?: number;
     priceChange24hPercent?: number;
+    intervalUsed?: string;
   } | null> {
     try {
-      // Fetch last 2 daily candles to compute 24h change
-      const candles = await this.getTokenOHLCV(unit, '1d', 2);
-      if (!candles || candles.length === 0) return null;
+      // Try multiple intervals to maximize coverage for illiquid/new tokens
+      const fallback = await this.getFirstAvailableOHLCV(unit, ['1h', '15m'], 2);
+      if (!fallback) return null;
+
+      const { candles, intervalUsed } = fallback as any;
       const latest = candles[candles.length - 1] as any;
       const prev = candles.length > 1 ? (candles[candles.length - 2] as any) : null;
 
-      const price = Number(latest.close) || 0;
-      const prevClose = prev ? Number(prev.close) || 0 : 0;
+      const price = Number(latest?.close) || Number(latest?.price) || 0;
+      const prevClose = prev ? (Number(prev?.close) || Number(prev?.price) || 0) : 0;
       const change = prev ? price - prevClose : 0;
       const changePct = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
       return {
         price,
-        volume: Number(latest.volume) || 0,
-        // Market cap not directly available; leave undefined for caller to compute if supply known
-        marketCap: undefined,
+        volume: Number(latest?.volume) || 0,
+        marketCap: undefined, // supply-dependent; compute upstream if needed
         priceChange24h: change,
         priceChange24hPercent: changePct,
+        intervalUsed,
       };
     } catch (error) {
       console.error(`Failed to get token price for ${unit}:`, error);
@@ -362,7 +440,7 @@ export class TapToolsAPI {
   } = {}): Promise<any[]> {
     try {
       const params: Record<string, string> = { unit };
-      
+
       if (options.timeframe) params.timeframe = options.timeframe;
       if (options.sortBy) params.sortBy = options.sortBy;
       if (options.order) params.order = options.order;
@@ -370,7 +448,7 @@ export class TapToolsAPI {
       if (options.from) params.from = options.from.toString();
       if (options.page) params.page = options.page.toString();
       if (options.perPage) params.perPage = options.perPage.toString();
-      
+
       const data = await this.request('/token/trades', params);
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -384,9 +462,9 @@ export class TapToolsAPI {
    */
   async getTokenTradingStats(unit: string, timeframe: string = '24h'): Promise<any> {
     try {
-      const data = await this.request('/token/trading/stats', { 
-        unit, 
-        timeframe 
+      const data = await this.request('/token/trading/stats', {
+        unit,
+        timeframe
       });
       return data;
     } catch (error) {
@@ -403,7 +481,7 @@ export class TapToolsAPI {
    * @param options Additional parameters
    */
   async getTokenIndicators(
-    unit: string, 
+    unit: string,
     interval: string = '1h',
     indicator: 'ma' | 'ema' | 'rsi' | 'macd' | 'bb' | 'bbw' = 'rsi',
     options: {
@@ -417,12 +495,12 @@ export class TapToolsAPI {
     } = {}
   ): Promise<any[]> {
     try {
-      const params: Record<string, string> = { 
-        unit, 
+      const params: Record<string, string> = {
+        unit,
         interval,
         indicator
       };
-      
+
       // Add optional parameters based on indicator type
       if (options.items) params.items = options.items.toString();
       if (options.length) params.length = options.length.toString();
@@ -431,7 +509,7 @@ export class TapToolsAPI {
       if (options.fastLength) params.fastLength = options.fastLength.toString();
       if (options.slowLength) params.slowLength = options.slowLength.toString();
       if (options.stdDeviation) params.stdDeviation = options.stdDeviation.toString();
-      
+
       const data = await this.request('/token/indicators', params);
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -450,23 +528,23 @@ export class TapToolsAPI {
     items: number = 100
   ): Promise<Record<string, any[]>> {
     const results: Record<string, any[]> = {};
-    
+
     // Fetch indicators in parallel
     const promises = indicators.map(async (indicator) => {
       const data = await this.getTokenIndicators(
-        unit, 
-        interval, 
-        indicator as any, 
+        unit,
+        interval,
+        indicator as any,
         { items, length: 14 }
       );
       return { indicator, data };
     });
-    
+
     const responses = await Promise.all(promises);
     responses.forEach(({ indicator, data }) => {
       results[indicator] = data;
     });
-    
+
     return results;
   }
 
