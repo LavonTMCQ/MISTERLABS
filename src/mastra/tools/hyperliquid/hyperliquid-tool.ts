@@ -148,18 +148,28 @@ export const cancelHyperliquidOrder = createTool({
   inputSchema: z.object({
     cancels: z.array(z.object({
       coin: z.string(),
-      oid: z.number(),
+      o: z.number().describe("Order ID"),
     })).describe("Array of orders to cancel"),
   }),
   execute: async ({ context: { cancels } }) => {
     try {
       const sdk = getHyperliquidSDK();
-      const result = await sdk.exchange.cancelOrder(cancels);
+
+      // Cancel orders one by one since the API might not support batch cancellation
+      const results = [];
+      for (const cancelRequest of cancels) {
+        try {
+          const result = await sdk.exchange.cancelOrder(cancelRequest);
+          results.push({ ...cancelRequest, result, success: true });
+        } catch (orderError: any) {
+          results.push({ ...cancelRequest, error: orderError.message, success: false });
+        }
+      }
 
       return {
         success: true,
         cancelRequests: cancels,
-        result,
+        results,
         timestamp: Date.now(),
       };
     } catch (error: any) {
