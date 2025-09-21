@@ -86,7 +86,7 @@ client.on(Events.MessageCreate, async (message) => {
       }
     );
     
-    // Get TOPDOWN's response
+    // Get agent's response
     const reply = response.data.text;
     
     // Only send if we have a response
